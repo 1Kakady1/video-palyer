@@ -181,18 +181,21 @@ export class VideoPlayer {
   private isFullScreen: boolean = false;
   private navigator = window.navigator;
 
-  constructor(videoID: string = '#player-video', videoContainerID: string = '#player-conrainer') {
-    this.video = document.querySelector(videoID);
-    this.videoContainer = document.querySelector(videoContainerID);
+  constructor(videoContainer: string = '#player-conrainer') {
+    this.videoContainer = document.querySelector(videoContainer);
+    this.video = this.videoContainer?.querySelector('video') || null;
+    this.checkSelectors();
 
-    const ui = new VideoPlayerElements(this.videoContainer);
-    const uiList = ui.createUI();
-
-    Object.keys(uiList).forEach((key: string) => {
-      uiList[key].ui.forEach((i: string) => {
-        this.controlsUI = { ...this.controlsUI, [i]: document.querySelector('.' + i) };
+    if (!this.checkSelectors() && this.videoContainer) {
+      const ui = new VideoPlayerElements(this.videoContainer);
+      const uiList = ui.createUI();
+      const container = this.videoContainer;
+      Object.keys(uiList).forEach((key: string) => {
+        uiList[key].ui.forEach((i: string) => {
+          this.controlsUI = { ...this.controlsUI, [i]: container.querySelector('.' + i) };
+        });
       });
-    });
+    }
 
     this._onClickControls = this._onClickControls.bind(this);
     this._onChangePip = this._onChangePip.bind(this);
@@ -412,7 +415,7 @@ export class VideoPlayer {
     };
   }
 
-  player = () => {
+  playerInit = () => {
     if (!this.checkSelectors() && this.video) {
       this._onClickControls();
       this._onChangePip();

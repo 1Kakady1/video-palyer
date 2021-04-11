@@ -1,23 +1,26 @@
 $bgColorControls: rgba(84,84,84,0.6)
 $bgColorPlayerConrainer: #000
+$colorControlsBtn: #fff
+$bgProgress: #595
+$bgBuffer: #777
+$bgTrack: #555
 
-#player-video
-    width: 100%;
-    height: 100%;
-    position: absolute;
-    top: 0px;
-    left: 0px;
-    z-index: 3;
-    &::-webkit-media-controls
-        display: none!important;
-    &::-webkit-media-controls-enclosure
-        display: none!important;
-
-#player-conrainer
+.video-player-wrap
     position: relative;
-    width: 600px;
-    height: 600px;
+    width: 400px;
+    height: 400px;
     background-color: $bgColorPlayerConrainer;
+    video
+        width: 100%;
+        height: 100%;
+        position: absolute;
+        top: 0px;
+        left: 0px;
+        z-index: 3;
+        &::-webkit-media-controls
+            display: none!important;
+        &::-webkit-media-controls-enclosure
+            display: none!important;
 .video-player-controls
     width: 100%
     height: 32px;
@@ -39,11 +42,11 @@ $bgColorPlayerConrainer: #000
     & > svg
         z-index: -1;
         position: relative;
-        fill: #fff
+        fill: $colorControlsBtn
         width: 100%;
         height: 100%;
     &.videoFullscreenCancel svg polygon
-        fill: #fff
+        fill: $colorControlsBtn
 .player-btn-left
     margin-left: 6px;
     margin-right: 6px;
@@ -56,12 +59,12 @@ $bgColorPlayerConrainer: #000
 .player-buffered
     height: 20px;
     position: relative;
-    background: #555;
+    background: $bgTrack;
     width: 100%;
 .player-buffered-amount
     display: block;
     height: 100%;
-    background-color: #777;
+    background-color: $bgBuffer;
     width: 0;
 .player-progress
     margin-top: -20px;
@@ -71,5 +74,5 @@ $bgColorPlayerConrainer: #000
 .player-progress-amount
     display: block;
     height: 100%;
-    background-color: #595;
+    background-color: $bgProgress;
     width: 0;
