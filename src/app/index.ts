@@ -21,7 +21,7 @@ interface IVideoPlayerUI {
 }
 
 interface IFactoryEvent {
-  [key: string]: (el: HTMLElement) => void;
+  [key: string]: (event: MouseEvent, el: HTMLElement) => void;
 }
 
 declare global {
@@ -145,7 +145,9 @@ class VideoPlayerUI implements IVideoPlayerUI {
 
   track(container: string, progress: string, buffer: string) {
     return `
-        <div class="player-track ${container}">
+        <div class="player-track-container">
+          <div class="player-track ${container}" >
+          </div>
           <div class="player-buffered">
             <span class="player-buffered-amount ${buffer}"></span>
           </div>
@@ -187,11 +189,12 @@ class VideoPlayerUI implements IVideoPlayerUI {
 
     const constrols = `
       <div class="${className}">
-
         <div class="player-btn-left">
-            ${this.play(uiClasses.play, uiClasses.pause)}
+          ${this.play(uiClasses.play, uiClasses.pause)}
         </div>
+
         ${this.track(uiClasses.track, uiClasses.progress, uiClasses.buffer)}
+
         <div class="player-btn-right">
           ${this.fullscreen(uiClasses.fullscreen, uiClasses.fullscreenCancel)}
           ${this.volume({ btn: uiClasses.volume, volume: uiClasses.rangeVolume, range: uiClasses.rangeVolumeContainer })}
@@ -293,23 +296,23 @@ export class VideoPlayer {
   };
 
   private _onClickControls(unMount: boolean = false) {
-    const click = (e: Event) => {
+    const click = (e: MouseEvent) => {
       const event = e.target as HTMLElement;
       const keys = Object.keys(this.controlsUI);
       const controlEvents: IFactoryEvent = {
-        [UiClasses.play]: (el: HTMLElement) => {
+        [UiClasses.play]: () => {
           this.isPlay = true;
           this.fadeOutIN(UiClasses.pause, UiClasses.play, FadeTime.controls);
           this.video?.play();
         },
 
-        [UiClasses.pause]: (el: HTMLElement) => {
+        [UiClasses.pause]: () => {
           this.isPlay = false;
           this.fadeOutIN(UiClasses.play, UiClasses.pause, FadeTime.controls);
           this.video?.pause();
         },
 
-        [UiClasses.fullscreen]: (el: HTMLElement) => {
+        [UiClasses.fullscreen]: () => {
           if (this.video && this.videoContainer) {
             this.isFullScreen = true;
             const video = this.videoContainer;
@@ -324,7 +327,7 @@ export class VideoPlayer {
             this.fadeOutIN(UiClasses.fullscreenCancel, UiClasses.fullscreen, FadeTime.fullscreen);
           }
         },
-        [UiClasses.fullscreenCancel]: (el: HTMLElement) => {
+        [UiClasses.fullscreenCancel]: () => {
           if (this.video && this.videoContainer) {
             this.isFullScreen = false;
             if (document.exitFullscreen) {
@@ -339,8 +342,7 @@ export class VideoPlayer {
             this.fadeOutIN(UiClasses.fullscreen, UiClasses.fullscreenCancel, FadeTime.fullscreen);
           }
         },
-        [UiClasses.volume]: (el: HTMLElement) => {
-          console.log('dadada');
+        [UiClasses.volume]: () => {
           this.isVolume = !this.isVolume;
           const volume = this.controlsUI[UiClasses.volumeProgressContainer];
 
@@ -359,12 +361,28 @@ export class VideoPlayer {
               });
           }
         },
+        [UiClasses.track]: (event) => {
+          const track = this.videoContainer?.querySelector('.' + UiClasses.track) as HTMLDivElement;
+          //TODO: лев. кнопки двигают трек. Почему ???
+          const offeset = (this.videoContainer?.querySelector('.player-btn-left') as HTMLDivElement).offsetWidth;
+          const posX = event.clientX - offeset;
+
+          if (this.video) {
+            if (!this.isPlay) {
+              this.fadeOutIN(UiClasses.pause, UiClasses.play, FadeTime.controls);
+            }
+
+            this.video.pause();
+            this.video.currentTime = (this.video.duration * posX) / track.offsetWidth;
+            this.video.play();
+          }
+        },
       };
 
       for (let i = 0; i < keys.length; i++) {
         if (event.matches('.' + keys[i]) && typeof controlEvents[keys[i]] !== 'undefined') {
           const el = this.controlsUI[keys[i]];
-          el && controlEvents[keys[i]](el);
+          el && controlEvents[keys[i]](e, el);
           break;
         }
       }
@@ -376,6 +394,19 @@ export class VideoPlayer {
 
     return () => {
       this.videoContainer?.removeEventListener('click', click, false);
+    };
+  }
+
+  secondsToHms(d: number) {
+    d = Number(d);
+    var h = Math.floor(d / 3600);
+    var m = Math.floor((d % 3600) / 60);
+    var s = Math.floor((d % 3600) % 60);
+
+    return {
+      h,
+      m,
+      s,
     };
   }
 
@@ -444,14 +475,15 @@ export class VideoPlayer {
     const video = this.video as HTMLVideoElement;
 
     const videoEnd = () => {
-      this.fadeOutIN(UiClasses.play, UiClasses.pause, FadeTime.controls, () => {
-        video.pause();
-        video.currentTime = 0;
-      });
+      this.isPlay = false;
+      video.pause();
+      video.currentTime = 0;
+      this.fadeOutIN(UiClasses.play, UiClasses.pause, FadeTime.controls);
     };
 
     const timeupdate = () => {
       const duration = video.duration;
+      console.log();
       if (duration > 0) {
         const progressUI = this.controlsUI[UiClasses.progress];
         if (progressUI) progressUI.style.width = (video.currentTime / duration) * 100 + '%';
