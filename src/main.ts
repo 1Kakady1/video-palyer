@@ -1,8 +1,5 @@
 import './style.sass';
 import { VideoPlayer } from './app/index';
 
-const video = new VideoPlayer('.player-conrainer');
-const video2 = new VideoPlayer('.player-conrainer-2');
-
+const video = new VideoPlayer('.player-conrainer', './assets/images/icons', 50);
 video.playerInit();
-video2.playerInit();

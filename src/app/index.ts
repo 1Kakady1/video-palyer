@@ -14,7 +14,7 @@ interface IVideoPlayerElementsCreate {
   [key: string]: IElementsReturn;
 }
 
-interface IVideoPlayerElements {
+interface IVideoPlayerUI {
   unMount: () => void;
   controls: (container: HTMLDivElement | null, isUnmount?: boolean) => IElementsReturn;
   createUI: () => IVideoPlayerElementsCreate;
@@ -43,7 +43,7 @@ declare global {
   }
 }
 
-export enum ButtonsClasses {
+export enum UiClasses {
   play = 'videoPlay',
   stop = 'videoStop',
   pause = 'videoPause',
@@ -53,11 +53,16 @@ export enum ButtonsClasses {
   buffer = 'playerBufferedAmount',
   progress = 'playerProgressAmount',
   track = 'playerTrack',
+  volume = 'videoVolume',
+  rangeVolume = 'videoVolumeRange',
+  labelValue = 'palyer-volume-label',
+  volumeProgressContainer = 'palyerVolumeContainer',
 }
 
 enum FadeTime {
   fullscreen = 30,
   controls = 25,
+  volume = 20,
 }
 
 interface IFade {
@@ -67,16 +72,89 @@ interface IFade {
   callback?: () => void;
 }
 
-class VideoPlayerElements implements IVideoPlayerElements {
-  private container: HTMLDivElement | null;
+interface IVolumeClasses {
+  btn: string;
+  volume: string;
+  range: string;
+}
+interface IVideoPlayerUIParam {
+  volumeValue: number;
+  icons: string;
+}
 
-  constructor(videoContainer: HTMLDivElement | null) {
+class VideoPlayerUI implements IVideoPlayerUI {
+  private container: HTMLDivElement | null;
+  private volumeValue: number;
+  private icons: string;
+
+  constructor(videoContainer: HTMLDivElement | null, param: IVideoPlayerUIParam) {
     this.container = videoContainer;
+    this.volumeValue = param.volumeValue;
+    this.icons = param.icons;
+    this.controls = this.controls.bind(this);
+    this.volume = this.volume.bind(this);
   }
 
   unMount = (): void => {
     this.controls(this.container, true);
   };
+
+  volume({ btn, volume, range }: IVolumeClasses) {
+    return `
+      <div class="player-btn-pp palyer-volume-container">
+
+        <div class="palyer-volume-range-wrap ${range}" style="display: none;">
+          <input type="range" class="input-player-range ${volume}" value="${this.volumeValue}" name="volume" min="0" max="100">
+          <div class="palyer-volume-label">
+            ${this.volumeValue}%
+          </div>
+        </div>
+       
+        <button class="${btn} contarols-btn">
+           <img src="${this.icons}/volume.svg" alt="volume"> 
+        </button>
+      </div>
+    `;
+  }
+
+  fullscreen = (on: string, off: string) => {
+    return `
+        <div class="player-btn-pp">
+            <button class="${on} contarols-btn">
+              <img src="${this.icons}/fullscreen.svg" alt="fullscreen on">
+            </button>
+            <button class="${off} contarols-btn" style="display: none;">
+              <img src="${this.icons}/fullscreen-off.svg" alt="fullscreen off">
+            </button>
+          </div>
+    `;
+  };
+
+  play(play: string, pause: string) {
+    return `
+      <div class="player-btn-pp">
+        <button class="${play} contarols-btn">
+          <img src="${this.icons}/play.svg" alt="play">
+        </button>
+        <button class="${pause} contarols-btn" style="display: none;">
+          <img src="${this.icons}/pause.svg" alt="pause">
+        </button>
+      </div>
+    `;
+  }
+
+  track(container: string, progress: string, buffer: string) {
+    return `
+        <div class="player-track ${container}">
+          <div class="player-buffered">
+            <span class="player-buffered-amount ${buffer}"></span>
+          </div>
+          <div class="player-progress">
+            <span class="player-progress-amount ${progress}"></span>
+          </div>
+        </div>
+      `;
+  }
 
   controls(container: HTMLDivElement | null, isUnmount?: boolean): IElementsReturn {
     if (!container) {
@@ -84,14 +162,18 @@ class VideoPlayerElements implements IVideoPlayerElements {
     }
 
     const className = 'video-player-controls';
-    const uiClasses = [
-      ButtonsClasses.play,
-      ButtonsClasses.pause,
-      ButtonsClasses.fullscreen,
-      ButtonsClasses.fullscreenCancel,
-      ButtonsClasses.buffer,
-      ButtonsClasses.progress,
-    ];
+    const uiClasses = {
+      play: UiClasses.play,
+      pause: UiClasses.pause,
+      fullscreen: UiClasses.fullscreen,
+      fullscreenCancel: UiClasses.fullscreenCancel,
+      buffer: UiClasses.buffer,
+      progress: UiClasses.progress,
+      track: UiClasses.track,
+      volume: UiClasses.volume,
+      rangeVolume: UiClasses.rangeVolume,
+      rangeVolumeContainer: UiClasses.volumeProgressContainer,
+    };
 
     if (isUnmount) {
       const el = document.querySelector(`.${className}`);
@@ -99,59 +181,20 @@ class VideoPlayerElements implements IVideoPlayerElements {
       return {
         status: 'remove',
         class: className,
-        ui: uiClasses,
+        ui: [],
       };
     }
 
     const constrols = `
       <div class="${className}">
+
         <div class="player-btn-left">
-          <div class="player-btn-pp">
-            <button class="${uiClasses[0]} contarols-btn">
-              <svg version="1.1"  xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
-              viewBox="0 0 163.861 163.861" style="enable-background:new 0 0 163.861 163.861;" xml:space="preserve">
-                <path d="M34.857,3.613C20.084-4.861,8.107,2.081,8.107,19.106v125.637c0,17.042,11.977,23.975,26.75,15.509L144.67,97.275
-                  c14.778-8.477,14.778-22.211,0-30.686L34.857,3.613z"/>
-              </svg>
-            </button>
-            <button class="${uiClasses[1]} contarols-btn" style="display: none;">
-              <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
-                viewBox="0 0 47.607 47.607" style="enable-background:new 0 0 47.607 47.607;" xml:space="preserve">
-                <path d="M17.991,40.976c0,3.662-2.969,6.631-6.631,6.631l0,0c-3.662,0-6.631-2.969-6.631-6.631V6.631C4.729,2.969,7.698,0,11.36,0
-                  l0,0c3.662,0,6.631,2.969,6.631,6.631V40.976z"/>
-                <path d="M42.877,40.976c0,3.662-2.969,6.631-6.631,6.631l0,0c-3.662,0-6.631-2.969-6.631-6.631V6.631
-                  C29.616,2.969,32.585,0,36.246,0l0,0c3.662,0,6.631,2.969,6.631,6.631V40.976z"/>
-              </svg>
-            </button>
-          </div>
+            ${this.play(uiClasses.play, uiClasses.pause)}
         </div>
-        <div class="player-track ${uiClasses[6]}">
-          <div class="player-buffered">
-            <span class="player-buffered-amount ${uiClasses[4]}"></span>
-          </div>
-          <div class="player-progress">
-            <span class="player-progress-amount playerProgressAmount ${uiClasses[5]}"></span>
-          </div>
-        </div>
+        ${this.track(uiClasses.track, uiClasses.progress, uiClasses.buffer)}
         <div class="player-btn-right">
-          <div class="player-btn-pp">
-            <button class="${uiClasses[2]} contarols-btn">
-              <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
-              viewBox="0 0 357 357" style="enable-background:new 0 0 357 357;" xml:space="preserve">
-                <path d="M51,229.5H0V357h127.5v-51H51V229.5z M0,127.5h51V51h76.5V0H0V127.5z M306,306h-76.5v51H357V229.5h-51V306z M229.5,0v51
-                  H306v76.5h51V0H229.5z"/>
-              </svg>
-            </button>
-            <button class="${uiClasses[3]} contarols-btn" style="display: none;">
-              <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
-              viewBox="0 0 32 32" style="enable-background:new 0 0 32 32;" xml:space="preserve">
-                <polygon points="24.586,27.414 29.172,32 32,29.172 27.414,24.586 32,20 20,20 20,32 			"/>
-                <polygon points="0,12 12,12 12,0 7.414,4.586 2.875,0.043 0.047,2.871 4.586,7.414 			"/>
-                <polygon points="0,29.172 2.828,32 7.414,27.414 12,32 12,20 0,20 4.586,24.586 			"/>
-                <polygon points="20,12 32,12 27.414,7.414 31.961,2.871 29.133,0.043 24.586,4.586 20,0 			"/>
-              </svg>
-            </button>
-          </div>
+          ${this.fullscreen(uiClasses.fullscreen, uiClasses.fullscreenCancel)}
+          ${this.volume({ btn: uiClasses.volume, volume: uiClasses.rangeVolume, range: uiClasses.rangeVolumeContainer })}
         </div>
       </div>
     `;
@@ -161,7 +204,7 @@ class VideoPlayerElements implements IVideoPlayerElements {
     return {
       status: 'insert',
       class: className,
-      ui: uiClasses,
+      ui: Object.values(uiClasses),
     };
   }
 
@@ -179,15 +222,20 @@ export class VideoPlayer {
   private controlsUI!: IUi;
   private isPlay: boolean = false;
   private isFullScreen: boolean = false;
+  private isVolume: boolean = false;
   private navigator = window.navigator;
+  private volumeValue: number;
+  private iconsFolder: string;
 
-  constructor(videoContainer: string = '#player-conrainer') {
+  constructor(videoContainer: string = '#player-conrainer', iconsFolder: string, volumeValue?: number) {
     this.videoContainer = document.querySelector(videoContainer);
     this.video = this.videoContainer?.querySelector('video') || null;
+    this.volumeValue = volumeValue || 100;
+    this.iconsFolder = iconsFolder;
     this.checkSelectors();
 
     if (!this.checkSelectors() && this.videoContainer) {
-      const ui = new VideoPlayerElements(this.videoContainer);
+      const ui = new VideoPlayerUI(this.videoContainer, { volumeValue: this.volumeValue, icons: this.iconsFolder });
       const uiList = ui.createUI();
       const container = this.videoContainer;
       Object.keys(uiList).forEach((key: string) => {
@@ -202,6 +250,7 @@ export class VideoPlayer {
     this._onChangeFullScreen = this._onChangeFullScreen.bind(this);
     this.fadeOutIN = this.fadeOutIN.bind(this);
     this._onChangeProgessVideo = this._onChangeProgessVideo.bind(this);
+    this._onChangeVolume = this._onChangeVolume.bind(this);
   }
 
   get videoElement() {
@@ -221,11 +270,12 @@ export class VideoPlayer {
   }
 
   unMount = (): void => {
-    const ui = new VideoPlayerElements(this.videoContainer);
+    const ui = new VideoPlayerUI(this.videoContainer, { volumeValue: this.volumeValue, icons: this.iconsFolder });
     ui.unMount();
     this._onClickControls(true)();
     this._onChangeFullScreen(true)();
     this._onChangeProgessVideo(true)();
+    this._onChangeVolume(true)();
   };
 
   checkSelectors = (): boolean => {
@@ -246,21 +296,20 @@ export class VideoPlayer {
     const click = (e: Event) => {
       const event = e.target as HTMLElement;
       const keys = Object.keys(this.controlsUI);
-
       const controlEvents: IFactoryEvent = {
-        [ButtonsClasses.play]: (el: HTMLElement) => {
+        [UiClasses.play]: (el: HTMLElement) => {
           this.isPlay = true;
-          this.fadeOutIN(ButtonsClasses.pause, ButtonsClasses.play, FadeTime.controls);
+          this.fadeOutIN(UiClasses.pause, UiClasses.play, FadeTime.controls);
           this.video?.play();
         },
 
-        [ButtonsClasses.pause]: (el: HTMLElement) => {
+        [UiClasses.pause]: (el: HTMLElement) => {
           this.isPlay = false;
-          this.fadeOutIN(ButtonsClasses.play, ButtonsClasses.pause, FadeTime.controls);
+          this.fadeOutIN(UiClasses.play, UiClasses.pause, FadeTime.controls);
           this.video?.pause();
         },
 
-        [ButtonsClasses.fullscreen]: (el: HTMLElement) => {
+        [UiClasses.fullscreen]: (el: HTMLElement) => {
           if (this.video && this.videoContainer) {
             this.isFullScreen = true;
             const video = this.videoContainer;
@@ -272,10 +321,10 @@ export class VideoPlayer {
             } else if (video.msRequestFullscreen) {
               video.msRequestFullscreen();
             }
-            this.fadeOutIN(ButtonsClasses.fullscreenCancel, ButtonsClasses.fullscreen, FadeTime.fullscreen);
+            this.fadeOutIN(UiClasses.fullscreenCancel, UiClasses.fullscreen, FadeTime.fullscreen);
           }
         },
-        [ButtonsClasses.fullscreenCancel]: (el: HTMLElement) => {
+        [UiClasses.fullscreenCancel]: (el: HTMLElement) => {
           if (this.video && this.videoContainer) {
             this.isFullScreen = false;
             if (document.exitFullscreen) {
@@ -287,13 +336,33 @@ export class VideoPlayer {
             } else if (document.msExitFullscreen) {
               document.msExitFullscreen();
             }
-            this.fadeOutIN(ButtonsClasses.fullscreen, ButtonsClasses.fullscreenCancel, FadeTime.fullscreen);
+            this.fadeOutIN(UiClasses.fullscreen, UiClasses.fullscreenCancel, FadeTime.fullscreen);
+          }
+        },
+        [UiClasses.volume]: (el: HTMLElement) => {
+          console.log('dadada');
+          this.isVolume = !this.isVolume;
+          const volume = this.controlsUI[UiClasses.volumeProgressContainer];
+
+          if (this.isVolume) {
+            volume &&
+              this.fadeIn({
+                el: volume,
+                display: 'flex',
+                time: FadeTime.volume,
+              });
+          } else {
+            volume &&
+              this.fadeOut({
+                el: volume,
+                time: FadeTime.volume,
+              });
           }
         },
       };
 
       for (let i = 0; i < keys.length; i++) {
-        if (event.matches('.' + keys[i])) {
+        if (event.matches('.' + keys[i]) && typeof controlEvents[keys[i]] !== 'undefined') {
           const el = this.controlsUI[keys[i]];
           el && controlEvents[keys[i]](el);
           break;
@@ -315,11 +384,11 @@ export class VideoPlayer {
 
     const onEnterpictureinpicture = () => {
       video.pause();
-      this.fadeOutIN(ButtonsClasses.play, ButtonsClasses.pause, FadeTime.controls);
+      this.fadeOutIN(UiClasses.play, UiClasses.pause, FadeTime.controls);
     };
     const onLeavepictureinpicture = () => {
       video.pause();
-      this.fadeOutIN(ButtonsClasses.play, ButtonsClasses.pause, FadeTime.controls);
+      this.fadeOutIN(UiClasses.play, UiClasses.pause, FadeTime.controls);
     };
 
     if (document.pictureInPictureEnabled && !unMount) {
@@ -330,12 +399,12 @@ export class VideoPlayer {
         //@ts-ignore
         this.navigator.mediaSession.setActionHandler('pause', () => {
           video.pause();
-          this.fadeOutIN(ButtonsClasses.play, ButtonsClasses.pause, FadeTime.controls);
+          this.fadeOutIN(UiClasses.play, UiClasses.pause, FadeTime.controls);
         });
         //@ts-ignore
         this.navigator.mediaSession.setActionHandler('play', () => {
           video.play();
-          this.fadeOutIN(ButtonsClasses.pause, ButtonsClasses.play, FadeTime.controls);
+          this.fadeOutIN(UiClasses.pause, UiClasses.play, FadeTime.controls);
         });
       }
     }
@@ -350,10 +419,10 @@ export class VideoPlayer {
     const onfullscreenchange = () => {
       if (this.isFullScreen) {
         this.isFullScreen = false;
-        this.fadeOutIN(ButtonsClasses.fullscreenCancel, ButtonsClasses.fullscreen, FadeTime.fullscreen);
+        this.fadeOutIN(UiClasses.fullscreenCancel, UiClasses.fullscreen, FadeTime.fullscreen);
       } else {
         this.isFullScreen = true;
-        this.fadeOutIN(ButtonsClasses.fullscreen, ButtonsClasses.fullscreenCancel, FadeTime.fullscreen);
+        this.fadeOutIN(UiClasses.fullscreen, UiClasses.fullscreenCancel, FadeTime.fullscreen);
       }
     };
 
@@ -375,7 +444,7 @@ export class VideoPlayer {
     const video = this.video as HTMLVideoElement;
 
     const videoEnd = () => {
-      this.fadeOutIN(ButtonsClasses.play, ButtonsClasses.pause, FadeTime.controls, () => {
+      this.fadeOutIN(UiClasses.play, UiClasses.pause, FadeTime.controls, () => {
         video.pause();
         video.currentTime = 0;
       });
@@ -384,7 +453,7 @@ export class VideoPlayer {
     const timeupdate = () => {
       const duration = video.duration;
       if (duration > 0) {
-        const progressUI = this.controlsUI[ButtonsClasses.progress];
+        const progressUI = this.controlsUI[UiClasses.progress];
         if (progressUI) progressUI.style.width = (video.currentTime / duration) * 100 + '%';
       }
     };
@@ -394,7 +463,7 @@ export class VideoPlayer {
       if (duration > 0) {
         for (let i = 0; i < video.buffered.length; i++) {
           if (video.buffered.start(video.buffered.length - 1 - i) < video.currentTime) {
-            const bufferUI = this.controlsUI[ButtonsClasses.buffer];
+            const bufferUI = this.controlsUI[UiClasses.buffer];
             if (bufferUI) bufferUI.style.width = (video.buffered.end(video.buffered.length - 1 - i) / duration) * 100 + '%';
             break;
           }
@@ -415,12 +484,34 @@ export class VideoPlayer {
     };
   }
 
+  private _onChangeVolume(unMount: boolean = false) {
+    const range = this.controlsUI[UiClasses.rangeVolume];
+    const volume = (e: any) => {
+      const label = this.videoContainer?.querySelector('.' + UiClasses.labelValue) as HTMLDivElement;
+      const target = e.target as HTMLInputElement;
+      const video = this.video;
+
+      label.textContent = target.value + '%';
+      if (video) video.volume = parseInt(target.value) / 100;
+    };
+
+    if (!unMount && this.video && range) {
+      range.addEventListener('input', volume, false);
+    }
+
+    return () => {
+      range?.removeEventListener('input', volume, false);
+    };
+  }
+
   playerInit = () => {
     if (!this.checkSelectors() && this.video) {
       this._onClickControls();
       this._onChangePip();
       this._onChangeFullScreen();
       this._onChangeProgessVideo();
+      this._onChangeVolume();
+      this.video.volume = this.volumeValue / 100;
     }
   };
 
