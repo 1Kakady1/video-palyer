@@ -57,6 +57,11 @@ export enum UiClasses {
   rangeVolume = 'videoVolumeRange',
   labelValue = 'palyer-volume-label',
   volumeProgressContainer = 'palyerVolumeContainer',
+  videoPlayerControls = 'videoPlayerControls',
+  videoContainerOverlay = 'overlayVideoContainer',
+  videoOverlayBtn = 'overlayVideoBtn',
+  trackTime = 'palyertrackTime',
+  trackTimeFull = 'palyertrackTimeFull',
 }
 
 enum FadeTime {
@@ -93,10 +98,12 @@ class VideoPlayerUI implements IVideoPlayerUI {
     this.icons = param.icons;
     this.controls = this.controls.bind(this);
     this.volume = this.volume.bind(this);
+    this.overlayPlay = this.overlayPlay.bind(this);
   }
 
   unMount = (): void => {
     this.controls(this.container, true);
+    this.overlayPlay(true);
   };
 
   volume({ btn, volume, range }: IVolumeClasses) {
@@ -143,9 +150,14 @@ class VideoPlayerUI implements IVideoPlayerUI {
     `;
   }
 
-  track(container: string, progress: string, buffer: string) {
+  track(container: string, progress: string, buffer: string, time: string, timeFull: string) {
     return `
         <div class="player-track-container">
+          <div class="player-track-time">
+            <span class="${time}">00.00</span>
+            <span class="player-track-time_sp">/</span>
+            <span class="${timeFull}">00.00</span>
+          </div>
           <div class="player-track ${container}" >
           </div>
           <div class="player-buffered">
@@ -158,12 +170,44 @@ class VideoPlayerUI implements IVideoPlayerUI {
       `;
   }
 
+  overlayPlay(isUnmount?: boolean): IElementsReturn {
+    const className = 'overlay-play';
+    const uiClasses = {
+      container: UiClasses.videoContainerOverlay,
+      btn: UiClasses.videoOverlayBtn,
+    };
+
+    if (!isUnmount && this.container) {
+      const overlay = `
+        <div class="${className} ${uiClasses.container}">
+            <div class="play-icon ${uiClasses.btn}"></div>
+        </div>
+      `;
+
+      this.container.insertAdjacentHTML('beforeend', overlay);
+
+      return {
+        status: 'insert',
+        class: className,
+        ui: Object.values(uiClasses),
+      };
+    }
+
+    const el = this.container?.querySelector(`.${className}`);
+    el?.remove();
+    return {
+      status: 'remove',
+      class: className,
+      ui: [],
+    };
+  }
+
   controls(container: HTMLDivElement | null, isUnmount?: boolean): IElementsReturn {
     if (!container) {
       throw new Error('Not found container in controls element');
     }
 
-    const className = 'video-player-controls';
+    const className = 'videoPlayerControls';
     const uiClasses = {
       play: UiClasses.play,
       pause: UiClasses.pause,
@@ -175,10 +219,13 @@ class VideoPlayerUI implements IVideoPlayerUI {
       volume: UiClasses.volume,
       rangeVolume: UiClasses.rangeVolume,
       rangeVolumeContainer: UiClasses.volumeProgressContainer,
+      videoPlayerControls: UiClasses.videoPlayerControls,
+      trackTime: UiClasses.trackTime,
+      timeFull: UiClasses.trackTimeFull,
     };
 
     if (isUnmount) {
-      const el = document.querySelector(`.${className}`);
+      const el = this.container?.querySelector(`.${className}`);
       el?.remove();
       return {
         status: 'remove',
@@ -188,12 +235,12 @@ class VideoPlayerUI implements IVideoPlayerUI {
     }
 
     const constrols = `
-      <div class="${className}">
+      <div class="video-player-controls ${className}" style="display: none">
         <div class="player-btn-left">
           ${this.play(uiClasses.play, uiClasses.pause)}
         </div>
 
-        ${this.track(uiClasses.track, uiClasses.progress, uiClasses.buffer)}
+        ${this.track(uiClasses.track, uiClasses.progress, uiClasses.buffer, uiClasses.trackTime, uiClasses.timeFull)}
 
         <div class="player-btn-right">
           ${this.fullscreen(uiClasses.fullscreen, uiClasses.fullscreenCancel)}
@@ -214,12 +261,12 @@ class VideoPlayerUI implements IVideoPlayerUI {
   createUI = (): IVideoPlayerElementsCreate => {
     return {
       controls: this.controls(this.container),
+      overlayPLay: this.overlayPlay(),
     };
   };
 }
 
 export class VideoPlayer {
-  //https://developer.mozilla.org/ru/docs/Web/Guide/Audio_and_video_delivery/buffering_seeking_time_ranges
   private video: HTMLVideoElement | null;
   private videoContainer: HTMLDivElement | null;
   private controlsUI!: IUi;
@@ -229,6 +276,9 @@ export class VideoPlayer {
   private navigator = window.navigator;
   private volumeValue: number;
   private iconsFolder: string;
+  private mX: number = 0;
+  private mY: number = 0;
+  //private mouseTimer?: Timeout;
 
   constructor(videoContainer: string = '#player-conrainer', iconsFolder: string, volumeValue?: number) {
     this.videoContainer = document.querySelector(videoContainer);
@@ -254,6 +304,7 @@ export class VideoPlayer {
     this.fadeOutIN = this.fadeOutIN.bind(this);
     this._onChangeProgessVideo = this._onChangeProgessVideo.bind(this);
     this._onChangeVolume = this._onChangeVolume.bind(this);
+    //this._onMouse = this._onMouse.bind(this);
   }
 
   get videoElement() {
@@ -279,6 +330,7 @@ export class VideoPlayer {
     this._onChangeFullScreen(true)();
     this._onChangeProgessVideo(true)();
     this._onChangeVolume(true)();
+    //this._onMouse(true)();
   };
 
   checkSelectors = (): boolean => {
@@ -294,6 +346,38 @@ export class VideoPlayer {
 
     return false;
   };
+
+  private secondsToHms(d: number) {
+    d = Number(d);
+    const h = Math.floor(d / 3600);
+    const m = Math.floor((d % 3600) / 60);
+    const s = Math.floor((d % 3600) % 60);
+    const zero = (a: number) => {
+      return a > 9 ? a : '0' + a;
+    };
+    return {
+      h,
+      m,
+      s,
+      time: `${zero(m)}:${zero(s)}`,
+    };
+  }
+  private _onMouse(unMount: boolean = false) {
+    const onmousemove = (e: MouseEvent) => {
+      if (this.isVideoPlay) {
+        this.mX = e.clientX;
+        this.mY = e.clientY;
+      }
+    };
+
+    if (this.videoContainer && !unMount) {
+      this.videoContainer.addEventListener('mousemove', onmousemove);
+    }
+
+    return () => {
+      this.videoContainer?.removeEventListener('mousemove', onmousemove);
+    };
+  }
 
   private _onClickControls(unMount: boolean = false) {
     const click = (e: MouseEvent) => {
@@ -363,10 +447,7 @@ export class VideoPlayer {
         },
         [UiClasses.track]: (event) => {
           const track = this.videoContainer?.querySelector('.' + UiClasses.track) as HTMLDivElement;
-          //TODO: лев. кнопки двигают трек. Почему ???
-          const offeset = (this.videoContainer?.querySelector('.player-btn-left') as HTMLDivElement).offsetWidth;
-          const posX = event.clientX - offeset;
-
+          const posX = event.offsetX;
           if (this.video) {
             if (!this.isPlay) {
               this.fadeOutIN(UiClasses.pause, UiClasses.play, FadeTime.controls);
@@ -376,6 +457,14 @@ export class VideoPlayer {
             this.video.currentTime = (this.video.duration * posX) / track.offsetWidth;
             this.video.play();
           }
+        },
+        [UiClasses.videoOverlayBtn]: () => {
+          this.fadeOutIN(UiClasses.videoPlayerControls, UiClasses.videoContainerOverlay, 40, {
+            callback: () => {
+              this.video?.play();
+            },
+            display: 'flex',
+          });
         },
       };
 
@@ -394,19 +483,6 @@ export class VideoPlayer {
 
     return () => {
       this.videoContainer?.removeEventListener('click', click, false);
-    };
-  }
-
-  secondsToHms(d: number) {
-    d = Number(d);
-    var h = Math.floor(d / 3600);
-    var m = Math.floor((d % 3600) / 60);
-    var s = Math.floor((d % 3600) % 60);
-
-    return {
-      h,
-      m,
-      s,
     };
   }
 
@@ -478,7 +554,18 @@ export class VideoPlayer {
       this.isPlay = false;
       video.pause();
       video.currentTime = 0;
-      this.fadeOutIN(UiClasses.play, UiClasses.pause, FadeTime.controls);
+
+      this.fadeOutIN(UiClasses.videoContainerOverlay, UiClasses.videoPlayerControls, 40, {
+        callback: () => {
+          this.fadeOutIN(UiClasses.play, UiClasses.pause, 0);
+        },
+        display: 'flex',
+      });
+    };
+
+    const videoStart = () => {
+      this.isPlay = true;
+      this.fadeOutIN(UiClasses.pause, UiClasses.play, FadeTime.controls);
     };
 
     const timeupdate = () => {
@@ -486,7 +573,9 @@ export class VideoPlayer {
       console.log();
       if (duration > 0) {
         const progressUI = this.controlsUI[UiClasses.progress];
+        const timeUI = this.controlsUI[UiClasses.trackTime];
         if (progressUI) progressUI.style.width = (video.currentTime / duration) * 100 + '%';
+        if (timeUI) timeUI.innerText = this.secondsToHms(video.currentTime).time;
       }
     };
 
@@ -503,16 +592,25 @@ export class VideoPlayer {
       }
     };
 
+    const loadedmetadata = () => {
+      const timeFullUI = this.controlsUI[UiClasses.trackTimeFull];
+      if (timeFullUI) timeFullUI.innerText = this.secondsToHms(video.duration).time;
+    };
+
     if (this.video && !unMount) {
       video.addEventListener('progress', progress, false);
       video.addEventListener('timeupdate', timeupdate, false);
       video.addEventListener('ended', videoEnd, false);
+      video.addEventListener('play', videoStart, false);
+      video.addEventListener('loadedmetadata', loadedmetadata, false);
     }
 
     return () => {
       video.removeEventListener('ended', videoEnd, false);
       video.removeEventListener('progress', progress, false);
       video.removeEventListener('timeupdate', timeupdate, false);
+      video.removeEventListener('play', videoStart, false);
+      video.addEventListener('loadedmetadata', loadedmetadata, false);
     };
   }
 
@@ -543,6 +641,7 @@ export class VideoPlayer {
       this._onChangeFullScreen();
       this._onChangeProgessVideo();
       this._onChangeVolume();
+      // this._onMouse();
       this.video.volume = this.volumeValue / 100;
     }
   };
@@ -579,17 +678,25 @@ export class VideoPlayer {
     })();
   }
 
-  private fadeOutIN(showClassEl: string, hideClassEl: string, time: number, callbackShow?: () => void) {
+  private fadeOutIN(
+    showClassEl: string,
+    hideClassEl: string,
+    time: number,
+    param?: {
+      callback?: () => void;
+      display?: string;
+    }
+  ) {
     const el = this.controlsUI[hideClassEl];
     const elShow = this.controlsUI[showClassEl];
-    const callback = callbackShow;
+    const callback = param?.callback;
 
     el &&
       this.fadeOut({
         el,
         time,
         callback: () => {
-          elShow && this.fadeIn({ el: elShow, time, callback });
+          elShow && this.fadeIn({ el: elShow, display: param?.display || 'block', time, callback });
         },
       });
   }
