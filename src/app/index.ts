@@ -62,12 +62,16 @@ export enum UiClasses {
   videoOverlayBtn = 'overlayVideoBtn',
   trackTime = 'palyertrackTime',
   trackTimeFull = 'palyertrackTimeFull',
+  subtitleBtn = 'palyerSubtitleBtn',
+  subtitleItem = 'palyerSubtitleItem',
+  subtitleList = 'palyersubtitleList',
 }
 
 enum FadeTime {
   fullscreen = 30,
   controls = 25,
   volume = 20,
+  subtitle = 60,
 }
 
 interface IFade {
@@ -85,20 +89,37 @@ interface IVolumeClasses {
 interface IVideoPlayerUIParam {
   volumeValue: number;
   icons: string;
+  subtitles?: NodeListOf<HTMLTrackElement> | null;
+  subtitlesInit?: boolean;
+}
+
+enum Browser {
+  moz = 'Mozilla Firefox',
+  opera = 'Opera',
+  ie = 'Microsoft Internet Explorer',
+  edge = 'Microsoft Edge',
+  google = 'Google Chrome or Chromium',
+  safari = 'Apple Safari',
+  unknown = 'unknown',
 }
 
 class VideoPlayerUI implements IVideoPlayerUI {
   private container: HTMLDivElement | null;
   private volumeValue: number;
+  private subtitlesList: NodeListOf<HTMLTrackElement> | null;
   private icons: string;
+  private subtitlesInit?: boolean;
 
   constructor(videoContainer: HTMLDivElement | null, param: IVideoPlayerUIParam) {
     this.container = videoContainer;
     this.volumeValue = param.volumeValue;
     this.icons = param.icons;
+    this.subtitlesList = param.subtitles || null;
     this.controls = this.controls.bind(this);
     this.volume = this.volume.bind(this);
     this.overlayPlay = this.overlayPlay.bind(this);
+    this.subtitles = this.subtitles.bind(this);
+    this.subtitlesInit = param.subtitlesInit;
   }
 
   unMount = (): void => {
@@ -106,7 +127,51 @@ class VideoPlayerUI implements IVideoPlayerUI {
     this.overlayPlay(true);
   };
 
-  volume({ btn, volume, range }: IVolumeClasses) {
+  private subtitles({
+    btn,
+    cItem,
+    listTrack,
+    track,
+  }: {
+    btn: string;
+    cItem: string;
+    listTrack: string;
+    track: NodeListOf<HTMLTrackElement> | null;
+  }) {
+    const trackList = () => {
+      let items = '';
+
+      if (track) {
+        track.forEach((item) => {
+          items += `
+            <div class="${cItem} subtitle-item" data-lang="${item.lang}">
+              ${item.label}
+            </div>
+          `;
+        });
+
+        items += `
+          <div class="${cItem} subtitle-item active" data-lang="off">
+            Выкл.
+          </div>`;
+      }
+
+      return items;
+    };
+
+    return this.subtitlesInit
+      ? `
+    <div class="player-btn-pp palyer-subtitle-container">
+      <div class="subtitle-list ${listTrack}" style="display: none">
+        ${trackList()}
+      </div>
+      <button class="${btn} btn-cc contarols-btn">CC</button>
+    </div>
+    `
+      : '';
+  }
+
+  private volume({ btn, volume, range }: IVolumeClasses) {
     return `
       <div class="player-btn-pp palyer-volume-container">
 
@@ -124,7 +189,7 @@ class VideoPlayerUI implements IVideoPlayerUI {
     `;
   }
 
-  fullscreen = (on: string, off: string) => {
+  private fullscreen = (on: string, off: string) => {
     return `
         <div class="player-btn-pp">
             <button class="${on} contarols-btn">
@@ -137,7 +202,7 @@ class VideoPlayerUI implements IVideoPlayerUI {
     `;
   };
 
-  play(play: string, pause: string) {
+  private play(play: string, pause: string) {
     return `
       <div class="player-btn-pp">
         <button class="${play} contarols-btn">
@@ -150,7 +215,7 @@ class VideoPlayerUI implements IVideoPlayerUI {
     `;
   }
 
-  track(container: string, progress: string, buffer: string, time: string, timeFull: string) {
+  private track(container: string, progress: string, buffer: string, time: string, timeFull: string) {
     return `
         <div class="player-track-container">
           <div class="player-track-time">
@@ -203,10 +268,6 @@ class VideoPlayerUI implements IVideoPlayerUI {
   }
 
   controls(container: HTMLDivElement | null, isUnmount?: boolean): IElementsReturn {
-    if (!container) {
-      throw new Error('Not found container in controls element');
-    }
-
     const className = 'videoPlayerControls';
     const uiClasses = {
       play: UiClasses.play,
@@ -222,6 +283,8 @@ class VideoPlayerUI implements IVideoPlayerUI {
       videoPlayerControls: UiClasses.videoPlayerControls,
       trackTime: UiClasses.trackTime,
       timeFull: UiClasses.trackTimeFull,
+      subtitleItem: UiClasses.subtitleItem,
+      cc: UiClasses.subtitleBtn,
     };
 
     if (isUnmount) {
@@ -243,13 +306,19 @@ class VideoPlayerUI implements IVideoPlayerUI {
         ${this.track(uiClasses.track, uiClasses.progress, uiClasses.buffer, uiClasses.trackTime, uiClasses.timeFull)}
 
         <div class="player-btn-right">
+          ${this.subtitles({
+            btn: uiClasses.cc,
+            cItem: uiClasses.subtitleItem,
+            listTrack: UiClasses.subtitleList,
+            track: this.subtitlesList,
+          })}
           ${this.fullscreen(uiClasses.fullscreen, uiClasses.fullscreenCancel)}
           ${this.volume({ btn: uiClasses.volume, volume: uiClasses.rangeVolume, range: uiClasses.rangeVolumeContainer })}
         </div>
       </div>
     `;
 
-    container.insertAdjacentHTML('beforeend', constrols);
+    container?.insertAdjacentHTML('beforeend', constrols);
 
     return {
       status: 'insert',
@@ -266,6 +335,13 @@ class VideoPlayerUI implements IVideoPlayerUI {
   };
 }
 
+export interface IVideoPlayer {
+  videoContainer: string;
+  iconsFolder: string;
+  subtitle?: boolean;
+  volumeValue?: number;
+}
+
 export class VideoPlayer {
   private video: HTMLVideoElement | null;
   private videoContainer: HTMLDivElement | null;
@@ -276,21 +352,32 @@ export class VideoPlayer {
   private navigator = window.navigator;
   private volumeValue: number;
   private iconsFolder: string;
+  private subtitles: NodeListOf<HTMLTrackElement> | null;
+  private subtitlesIndex: number = -1;
+  private isSubtitles: boolean = false;
+  private ui?: VideoPlayerUI;
   private mX: number = 0;
   private mY: number = 0;
   //private mouseTimer?: Timeout;
 
-  constructor(videoContainer: string = '#player-conrainer', iconsFolder: string, volumeValue?: number) {
+  constructor({ videoContainer, iconsFolder, volumeValue, subtitle }: IVideoPlayer) {
     this.videoContainer = document.querySelector(videoContainer);
     this.video = this.videoContainer?.querySelector('video') || null;
     this.volumeValue = volumeValue || 100;
     this.iconsFolder = iconsFolder;
+    this.subtitles = this.video?.querySelectorAll('track') || null;
     this.checkSelectors();
 
     if (!this.checkSelectors() && this.videoContainer) {
-      const ui = new VideoPlayerUI(this.videoContainer, { volumeValue: this.volumeValue, icons: this.iconsFolder });
-      const uiList = ui.createUI();
       const container = this.videoContainer;
+      this.ui = new VideoPlayerUI(container, {
+        volumeValue: this.volumeValue,
+        icons: this.iconsFolder,
+        subtitles: this.subtitles,
+        subtitlesInit: subtitle,
+      });
+      container.classList.add(this.userAgent().class);
+      const uiList = this.ui.createUI();
       Object.keys(uiList).forEach((key: string) => {
         uiList[key].ui.forEach((i: string) => {
           this.controlsUI = { ...this.controlsUI, [i]: container.querySelector('.' + i) };
@@ -319,18 +406,42 @@ export class VideoPlayer {
     return this.isPlay;
   }
 
-  get isVideoFullScreen() {
-    return this.isFullScreen;
-  }
-
   unMount = (): void => {
-    const ui = new VideoPlayerUI(this.videoContainer, { volumeValue: this.volumeValue, icons: this.iconsFolder });
-    ui.unMount();
+    this.ui?.unMount();
     this._onClickControls(true)();
     this._onChangeFullScreen(true)();
     this._onChangeProgessVideo(true)();
     this._onChangeVolume(true)();
     //this._onMouse(true)();
+  };
+
+  userAgent = (): { browser: string; class: string } => {
+    let sBrowser = Browser.unknown;
+    let cBrowser = 'br-unknown';
+
+    const sUsrAg = this.navigator.userAgent;
+
+    if (sUsrAg.indexOf('Firefox') > -1) {
+      sBrowser = Browser.moz;
+      cBrowser = 'br-moz';
+    } else if (sUsrAg.indexOf('Opera') > -1) {
+      sBrowser = Browser.opera;
+      cBrowser = 'br-opera';
+    } else if (sUsrAg.indexOf('Trident') > -1) {
+      sBrowser = Browser.ie;
+      cBrowser = 'br-ie';
+    } else if (sUsrAg.indexOf('Edge') > -1) {
+      sBrowser = Browser.edge;
+      cBrowser = 'br-edge';
+    } else if (sUsrAg.indexOf('Chrome') > -1) {
+      sBrowser = Browser.google;
+      cBrowser = 'br-chrome';
+    } else if (sUsrAg.indexOf('Safari') > -1) {
+      sBrowser = Browser.safari;
+      cBrowser = 'br-safari';
+    }
+
+    return { browser: sBrowser, class: cBrowser };
   };
 
   checkSelectors = (): boolean => {
@@ -466,6 +577,43 @@ export class VideoPlayer {
             display: 'flex',
           });
         },
+        [UiClasses.subtitleItem]: (e) => {
+          const el = e.target as HTMLElement;
+          const lang = el.dataset.lang || 'off';
+
+          if (this.video && this.videoContainer) {
+            const oldEl = this.videoContainer.querySelector('.' + UiClasses.subtitleItem + '.active');
+            const video = this.video;
+            oldEl?.classList.remove('active');
+            el.classList.add('active');
+
+            if (lang === 'off') {
+              if (this.subtitlesIndex !== -1) this.video.textTracks[this.subtitlesIndex].mode = 'disabled';
+              this.subtitlesIndex = -1;
+            } else {
+              if (this.subtitlesIndex !== -1) this.video.textTracks[this.subtitlesIndex].mode = 'disabled';
+
+              const key = Object.values(video.textTracks).findIndex((x) => x.language === lang);
+              video.textTracks[key].mode = 'showing';
+              this.subtitlesIndex = key;
+            }
+            const list = this.videoContainer.querySelector('.' + UiClasses.subtitleList);
+            if (list) {
+              this.isSubtitles = false;
+              this.fadeOut({ el: list as HTMLElement, time: FadeTime.subtitle });
+            }
+          }
+        },
+        [UiClasses.subtitleBtn]: () => {
+          const list = this.videoContainer?.querySelector('.' + UiClasses.subtitleList) as HTMLElement;
+          this.isSubtitles = !this.isSubtitles;
+
+          if (this.isSubtitles) {
+            this.fadeIn({ el: list, time: FadeTime.subtitle });
+          } else {
+            this.fadeOut({ el: list as HTMLElement, time: FadeTime.subtitle });
+          }
+        },
       };
 
       for (let i = 0; i < keys.length; i++) {
@@ -533,17 +681,28 @@ export class VideoPlayer {
       }
     };
 
+    const br = this.userAgent();
+
     if (this.video && this.videoContainer && !unMount) {
-      // TODO: Add userAgent
-      this.videoContainer.addEventListener('webkitfullscreenchange', onfullscreenchange);
-      this.videoContainer.addEventListener('mozfullscreenchange', onfullscreenchange);
-      this.videoContainer.addEventListener('fullscreenchange', onfullscreenchange);
+      switch (br.browser) {
+        case Browser.moz:
+          this.videoContainer.addEventListener('mozfullscreenchange', onfullscreenchange);
+          break;
+        default:
+          this.videoContainer.addEventListener('webkitfullscreenchange', onfullscreenchange);
+          this.videoContainer.addEventListener('fullscreenchange', onfullscreenchange);
+      }
     }
 
     return () => {
-      this.videoContainer?.removeEventListener('webkitfullscreenchange', onfullscreenchange);
-      this.videoContainer?.removeEventListener('mozfullscreenchange', onfullscreenchange);
-      this.videoContainer?.removeEventListener('fullscreenchange', onfullscreenchange);
+      switch (br.browser) {
+        case Browser.moz:
+          this.videoContainer?.removeEventListener('mozfullscreenchange', onfullscreenchange);
+          break;
+        default:
+          this.videoContainer?.removeEventListener('webkitfullscreenchange', onfullscreenchange);
+          this.videoContainer?.removeEventListener('fullscreenchange', onfullscreenchange);
+      }
     };
   }
 
@@ -570,7 +729,6 @@ export class VideoPlayer {
 
     const timeupdate = () => {
       const duration = video.duration;
-      console.log();
       if (duration > 0) {
         const progressUI = this.controlsUI[UiClasses.progress];
         const timeUI = this.controlsUI[UiClasses.trackTime];

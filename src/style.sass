@@ -4,6 +4,8 @@ $colorControlsBtn: #fff
 $bgProgress: #0075ff
 $bgBuffer: #777
 $bgTrack: #555
+$subtitle: #fff
+$subtitleZIndex: 2;
 
 html, body, div, span, p, audio, video
     margin: 0;
@@ -35,6 +37,11 @@ body
             display: none!important;
         &::-webkit-media-controls-enclosure
             display: none!important;
+    &.br-moz video::cue
+        line-height: 3
+
+video::cue
+    color: $subtitle;
 .video-player-controls
     width: 100%
     height: 32px;
@@ -183,7 +190,44 @@ body
             width: 110px;
             height: 142px;
             transform: translate(-50%, -50%)
-            
+.palyer-subtitle-container
+    position: relative
+    .subtitle-list
+        position: absolute;
+        width: 72px
+        height: auto;
+        background-color: #000
+        right: 0%;
+        bottom: 160%;
+        padding: 12px
+        border-radius: 10px;
+        z-index: $subtitleZIndex;
+    .subtitle-item
+        color: #fff
+        font-size: 13px
+        padding: 4px
+        border-bottom:  1px solid #fff
+        font-weight: 600;
+        cursor: pointer
+        transition: all 1s ease-out;
+        border-radius: 2px
+        &:hover
+            background-color: $bgProgress
+            transition: all 1s ease-out; 
+        &.active
+             border-bottom:  1px solid $bgProgress
+             transition: all 1s ease-out;
+    .btn-cc
+        font-size: 9px;
+        color: #fff
+        border: 1px solid #fff
+        width: 20px;
+        height: 20px;
+        padding: 0;
+        border-radius: 20px
+.player-btn-pp
+    margin-left: 4px
+    margin-right: 4px            
 @media screen and (min-width: 992px)
     .video-player-wrap
         width: 800px;
