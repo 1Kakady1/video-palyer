@@ -65,6 +65,7 @@ export enum UiClasses {
   subtitleBtn = 'palyerSubtitleBtn',
   subtitleItem = 'palyerSubtitleItem',
   subtitleList = 'palyersubtitleList',
+  video = "playerVideo",
 }
 
 enum FadeTime {
@@ -340,6 +341,7 @@ export interface IVideoPlayer {
   iconsFolder: string;
   subtitle?: boolean;
   volumeValue?: number;
+  timeTrackOffest?: number;
 }
 
 export class VideoPlayer {
@@ -355,21 +357,25 @@ export class VideoPlayer {
   private subtitles: NodeListOf<HTMLTrackElement> | null;
   private subtitlesIndex: number = -1;
   private isSubtitles: boolean = false;
+  private isTrack: boolean = false;
   private ui?: VideoPlayerUI;
+  private timeTrackOffest: number;
   private mX: number = 0;
   private mY: number = 0;
   //private mouseTimer?: Timeout;
 
-  constructor({ videoContainer, iconsFolder, volumeValue, subtitle }: IVideoPlayer) {
+  constructor({ videoContainer, iconsFolder, volumeValue, subtitle, timeTrackOffest }: IVideoPlayer) {
     this.videoContainer = document.querySelector(videoContainer);
     this.video = this.videoContainer?.querySelector('video') || null;
     this.volumeValue = volumeValue || 100;
     this.iconsFolder = iconsFolder;
+    this.timeTrackOffest = timeTrackOffest || 3;
     this.subtitles = this.video?.querySelectorAll('track') || null;
     this.checkSelectors();
 
     if (!this.checkSelectors() && this.videoContainer) {
       const container = this.videoContainer;
+      this.video?.classList.add(UiClasses.video);
       this.ui = new VideoPlayerUI(container, {
         volumeValue: this.volumeValue,
         icons: this.iconsFolder,
@@ -391,6 +397,7 @@ export class VideoPlayer {
     this.fadeOutIN = this.fadeOutIN.bind(this);
     this._onChangeProgessVideo = this._onChangeProgessVideo.bind(this);
     this._onChangeVolume = this._onChangeVolume.bind(this);
+    this._onEventKeywords = this._onEventKeywords.bind(this);
     //this._onMouse = this._onMouse.bind(this);
   }
 
@@ -412,6 +419,7 @@ export class VideoPlayer {
     this._onChangeFullScreen(true)();
     this._onChangeProgessVideo(true)();
     this._onChangeVolume(true)();
+    this._onEventKeywords(true)();
     //this._onMouse(true)();
   };
 
@@ -474,6 +482,7 @@ export class VideoPlayer {
     };
   }
   private _onMouse(unMount: boolean = false) {
+    //TODO: not use
     const onmousemove = (e: MouseEvent) => {
       if (this.isVideoPlay) {
         this.mX = e.clientX;
@@ -563,19 +572,14 @@ export class VideoPlayer {
             if (!this.isPlay) {
               this.fadeOutIN(UiClasses.pause, UiClasses.play, FadeTime.controls);
             }
-
+            this.isTrack = true;
             this.video.pause();
             this.video.currentTime = (this.video.duration * posX) / track.offsetWidth;
             this.video.play();
           }
         },
         [UiClasses.videoOverlayBtn]: () => {
-          this.fadeOutIN(UiClasses.videoPlayerControls, UiClasses.videoContainerOverlay, 40, {
-            callback: () => {
-              this.video?.play();
-            },
-            display: 'flex',
-          });
+          this.video?.play();
         },
         [UiClasses.subtitleItem]: (e) => {
           const el = e.target as HTMLElement;
@@ -616,13 +620,19 @@ export class VideoPlayer {
         },
       };
 
+      if(event.matches("."+UiClasses.video)){
+        this.video?.pause();
+        return 0;
+      }
+
       for (let i = 0; i < keys.length; i++) {
         if (event.matches('.' + keys[i]) && typeof controlEvents[keys[i]] !== 'undefined') {
           const el = this.controlsUI[keys[i]];
           el && controlEvents[keys[i]](e, el);
-          break;
+          return 0;
         }
       }
+
     };
 
     if (!unMount) {
@@ -725,6 +735,7 @@ export class VideoPlayer {
     const videoStart = () => {
       this.isPlay = true;
       this.fadeOutIN(UiClasses.pause, UiClasses.play, FadeTime.controls);
+      this.fadeOutIN(UiClasses.videoPlayerControls, UiClasses.videoContainerOverlay, 40, {display: 'flex'});
     };
 
     const timeupdate = () => {
@@ -755,11 +766,26 @@ export class VideoPlayer {
       if (timeFullUI) timeFullUI.innerText = this.secondsToHms(video.duration).time;
     };
 
+    const videoPause = () =>{
+
+      if(!this.isTrack){
+        this.fadeOutIN(UiClasses.videoContainerOverlay, UiClasses.videoPlayerControls, 40, {
+          callback: () => {
+            this.fadeOutIN(UiClasses.play, UiClasses.pause, 0);
+          },
+          display: 'flex',
+        });
+      }
+
+      this.isTrack = false;
+    }
+
     if (this.video && !unMount) {
       video.addEventListener('progress', progress, false);
       video.addEventListener('timeupdate', timeupdate, false);
       video.addEventListener('ended', videoEnd, false);
       video.addEventListener('play', videoStart, false);
+      video.addEventListener('pause', videoPause, false);
       video.addEventListener('loadedmetadata', loadedmetadata, false);
     }
 
@@ -768,8 +794,44 @@ export class VideoPlayer {
       video.removeEventListener('progress', progress, false);
       video.removeEventListener('timeupdate', timeupdate, false);
       video.removeEventListener('play', videoStart, false);
+      video.removeEventListener('pause', videoPause, false);
       video.addEventListener('loadedmetadata', loadedmetadata, false);
     };
+  }
+
+  private _onEventKeywords(unMount: boolean = false){
+    const keyUp = (event)=>{
+      if(this.video)
+        switch(event.which){
+          case 32: //space
+            if(this.isPlay){
+              this.isPlay = false;
+              this.video.pause();
+            } else {
+              this.isPlay = true;
+              this.video.play();
+            }
+            break;
+          case 37: // <
+            if(this.isPlay){
+              this.video.currentTime -= this.timeTrackOffest;
+            }
+            break;
+          case 39: // >
+            if(this.isPlay){
+              this.video.currentTime += this.timeTrackOffest;
+            }
+            break;
+          default: return 0;
+        }
+
+    }
+    if (this.video && !unMount) {
+      document.addEventListener('keyup', keyUp)
+    }
+    return () => {
+      document.removeEventListener('keyup', keyUp)
+    }
   }
 
   private _onChangeVolume(unMount: boolean = false) {
@@ -799,6 +861,7 @@ export class VideoPlayer {
       this._onChangeFullScreen();
       this._onChangeProgessVideo();
       this._onChangeVolume();
+      this._onEventKeywords();
       // this._onMouse();
       this.video.volume = this.volumeValue / 100;
     }
