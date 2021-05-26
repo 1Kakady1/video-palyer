@@ -65,7 +65,7 @@ export enum UiClasses {
   subtitleBtn = 'palyerSubtitleBtn',
   subtitleItem = 'palyerSubtitleItem',
   subtitleList = 'palyersubtitleList',
-  video = "playerVideo",
+  video = 'playerVideo',
 }
 
 enum FadeTime {
@@ -362,7 +362,8 @@ export class VideoPlayer {
   private timeTrackOffest: number;
   private mX: number = 0;
   private mY: number = 0;
-  //private mouseTimer?: Timeout;
+  private isMouseHover: boolean = false;
+  private unMountObject: { [key: string]: () => void } = {};
 
   constructor({ videoContainer, iconsFolder, volumeValue, subtitle, timeTrackOffest }: IVideoPlayer) {
     this.videoContainer = document.querySelector(videoContainer);
@@ -398,7 +399,7 @@ export class VideoPlayer {
     this._onChangeProgessVideo = this._onChangeProgessVideo.bind(this);
     this._onChangeVolume = this._onChangeVolume.bind(this);
     this._onEventKeywords = this._onEventKeywords.bind(this);
-    //this._onMouse = this._onMouse.bind(this);
+    this._onMouse = this._onMouse.bind(this);
   }
 
   get videoElement() {
@@ -415,12 +416,9 @@ export class VideoPlayer {
 
   unMount = (): void => {
     this.ui?.unMount();
-    this._onClickControls(true)();
-    this._onChangeFullScreen(true)();
-    this._onChangeProgessVideo(true)();
-    this._onChangeVolume(true)();
-    this._onEventKeywords(true)();
-    //this._onMouse(true)();
+    for (var key in this.unMountObject) {
+      this.unMountObject[key]();
+    }
   };
 
   userAgent = (): { browser: string; class: string } => {
@@ -481,8 +479,7 @@ export class VideoPlayer {
       time: `${zero(m)}:${zero(s)}`,
     };
   }
-  private _onMouse(unMount: boolean = false) {
-    //TODO: not use
+  private _onMouse() {
     const onmousemove = (e: MouseEvent) => {
       if (this.isVideoPlay) {
         this.mX = e.clientX;
@@ -490,16 +487,28 @@ export class VideoPlayer {
       }
     };
 
-    if (this.videoContainer && !unMount) {
+    const onmouseleave = () => {
+      this.isMouseHover = false;
+    };
+
+    const onmouseenter = () => {
+      this.isMouseHover = true;
+    };
+
+    if (this.videoContainer) {
       this.videoContainer.addEventListener('mousemove', onmousemove);
+      this.videoContainer.addEventListener('mouseleave', onmouseleave);
+      this.videoContainer.addEventListener('mouseenter', onmouseenter);
     }
 
     return () => {
       this.videoContainer?.removeEventListener('mousemove', onmousemove);
+      this.videoContainer?.removeEventListener('mouseleave', onmouseleave);
+      this.videoContainer?.removeEventListener('mouseenter', onmouseenter);
     };
   }
 
-  private _onClickControls(unMount: boolean = false) {
+  private _onClickControls() {
     const click = (e: MouseEvent) => {
       const event = e.target as HTMLElement;
       const keys = Object.keys(this.controlsUI);
@@ -620,7 +629,7 @@ export class VideoPlayer {
         },
       };
 
-      if(event.matches("."+UiClasses.video)){
+      if (event.matches('.' + UiClasses.video)) {
         this.video?.pause();
         return 0;
       }
@@ -632,19 +641,16 @@ export class VideoPlayer {
           return 0;
         }
       }
-
     };
 
-    if (!unMount) {
-      this.videoContainer?.addEventListener('click', click, false);
-    }
+    this.videoContainer?.addEventListener('click', click, false);
 
     return () => {
       this.videoContainer?.removeEventListener('click', click, false);
     };
   }
 
-  private _onChangePip(unMount: boolean = false) {
+  private _onChangePip() {
     const video = this.video as HTMLVideoElement;
 
     const onEnterpictureinpicture = () => {
@@ -656,7 +662,7 @@ export class VideoPlayer {
       this.fadeOutIN(UiClasses.play, UiClasses.pause, FadeTime.controls);
     };
 
-    if (document.pictureInPictureEnabled && !unMount) {
+    if (document.pictureInPictureEnabled) {
       video.addEventListener('enterpictureinpicture', onEnterpictureinpicture, false);
       video.addEventListener('leavepictureinpicture', onLeavepictureinpicture, false);
 
@@ -680,7 +686,7 @@ export class VideoPlayer {
     };
   }
 
-  private _onChangeFullScreen(unMount: boolean = false) {
+  private _onChangeFullScreen() {
     const onfullscreenchange = () => {
       if (this.isFullScreen) {
         this.isFullScreen = false;
@@ -693,7 +699,7 @@ export class VideoPlayer {
 
     const br = this.userAgent();
 
-    if (this.video && this.videoContainer && !unMount) {
+    if (this.video && this.videoContainer) {
       switch (br.browser) {
         case Browser.moz:
           this.videoContainer.addEventListener('mozfullscreenchange', onfullscreenchange);
@@ -716,7 +722,7 @@ export class VideoPlayer {
     };
   }
 
-  private _onChangeProgessVideo(unMount: boolean = false) {
+  private _onChangeProgessVideo() {
     const video = this.video as HTMLVideoElement;
 
     const videoEnd = () => {
@@ -735,7 +741,8 @@ export class VideoPlayer {
     const videoStart = () => {
       this.isPlay = true;
       this.fadeOutIN(UiClasses.pause, UiClasses.play, FadeTime.controls);
-      this.fadeOutIN(UiClasses.videoPlayerControls, UiClasses.videoContainerOverlay, 40, {display: 'flex'});
+      if (!this.isTrack) this.fadeOutIN(UiClasses.videoPlayerControls, UiClasses.videoContainerOverlay, 40, { display: 'flex' });
+      this.isTrack = false;
     };
 
     const timeupdate = () => {
@@ -766,9 +773,8 @@ export class VideoPlayer {
       if (timeFullUI) timeFullUI.innerText = this.secondsToHms(video.duration).time;
     };
 
-    const videoPause = () =>{
-
-      if(!this.isTrack){
+    const videoPause = () => {
+      if (!this.isTrack) {
         this.fadeOutIN(UiClasses.videoContainerOverlay, UiClasses.videoPlayerControls, 40, {
           callback: () => {
             this.fadeOutIN(UiClasses.play, UiClasses.pause, 0);
@@ -776,11 +782,9 @@ export class VideoPlayer {
           display: 'flex',
         });
       }
+    };
 
-      this.isTrack = false;
-    }
-
-    if (this.video && !unMount) {
+    if (this.video) {
       video.addEventListener('progress', progress, false);
       video.addEventListener('timeupdate', timeupdate, false);
       video.addEventListener('ended', videoEnd, false);
@@ -799,12 +803,12 @@ export class VideoPlayer {
     };
   }
 
-  private _onEventKeywords(unMount: boolean = false){
-    const keyUp = (event)=>{
-      if(this.video)
-        switch(event.which){
+  private _onEventKeywords() {
+    const keyUp = (event) => {
+      if (this.video && this.isMouseHover) {
+        switch (event.which) {
           case 32: //space
-            if(this.isPlay){
+            if (this.isPlay) {
               this.isPlay = false;
               this.video.pause();
             } else {
@@ -813,28 +817,29 @@ export class VideoPlayer {
             }
             break;
           case 37: // <
-            if(this.isPlay){
+            if (this.isPlay) {
               this.video.currentTime -= this.timeTrackOffest;
             }
             break;
           case 39: // >
-            if(this.isPlay){
+            if (this.isPlay) {
               this.video.currentTime += this.timeTrackOffest;
             }
             break;
-          default: return 0;
+          default:
+            return 0;
         }
+      }
+    };
+    if (this.video) document.addEventListener('keyup', keyUp);
 
-    }
-    if (this.video && !unMount) {
-      document.addEventListener('keyup', keyUp)
-    }
     return () => {
-      document.removeEventListener('keyup', keyUp)
-    }
+      document.removeEventListener('keyup', keyUp);
+      this.isMouseHover = false;
+    };
   }
 
-  private _onChangeVolume(unMount: boolean = false) {
+  private _onChangeVolume() {
     const range = this.controlsUI[UiClasses.rangeVolume];
     const volume = (e: any) => {
       const label = this.videoContainer?.querySelector('.' + UiClasses.labelValue) as HTMLDivElement;
@@ -845,7 +850,7 @@ export class VideoPlayer {
       if (video) video.volume = parseInt(target.value) / 100;
     };
 
-    if (!unMount && this.video && range) {
+    if (this.video && range) {
       range.addEventListener('input', volume, false);
     }
 
@@ -856,13 +861,13 @@ export class VideoPlayer {
 
   playerInit = () => {
     if (!this.checkSelectors() && this.video) {
-      this._onClickControls();
-      this._onChangePip();
-      this._onChangeFullScreen();
-      this._onChangeProgessVideo();
-      this._onChangeVolume();
-      this._onEventKeywords();
-      // this._onMouse();
+      this.unMountObject['_onClickControls'] = this._onClickControls();
+      this.unMountObject['_onChangePip'] = this._onChangePip();
+      this.unMountObject['_onChangeFullScreen'] = this._onChangeFullScreen();
+      this.unMountObject['_onChangeProgessVideo'] = this._onChangeProgessVideo();
+      this.unMountObject['_onChangeVolume'] = this._onChangeVolume();
+      this.unMountObject['_onEventKeywords'] = this._onEventKeywords();
+      this.unMountObject['_onMouse'] = this._onMouse();
       this.video.volume = this.volumeValue / 100;
     }
   };

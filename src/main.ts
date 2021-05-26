@@ -6,7 +6,7 @@ const video = new VideoPlayer({
   iconsFolder: './assets/images/icons',
   volumeValue: 50,
   subtitle: true,
-  timeTrackOffest: 2
+  timeTrackOffest: 2,
 });
 
 video.playerInit();
