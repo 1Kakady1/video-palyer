@@ -1,6 +1,6 @@
 type status = 'remove' | 'insert';
 
-interface IElementsReturn {
+export interface IElementsReturn {
   status: status;
   class: string;
   ui: string[];
@@ -55,17 +55,20 @@ export enum UiClasses {
   track = 'playerTrack',
   volume = 'videoVolume',
   rangeVolume = 'videoVolumeRange',
-  labelValue = 'palyer-volume-label',
-  volumeProgressContainer = 'palyerVolumeContainer',
+  labelValue = 'player-volume-label',
+  volumeProgressContainer = 'playerVolumeContainer',
   videoPlayerControls = 'videoPlayerControls',
   videoContainerOverlay = 'overlayVideoContainer',
   videoOverlayBtn = 'overlayVideoBtn',
   trackTime = 'palyertrackTime',
   trackTimeFull = 'palyertrackTimeFull',
-  subtitleBtn = 'palyerSubtitleBtn',
-  subtitleItem = 'palyerSubtitleItem',
+  subtitleBtn = 'playerSubtitleBtn',
+  subtitleItem = 'playerSubtitleItem',
   subtitleList = 'palyersubtitleList',
   video = 'playerVideo',
+  doubleTap = 'doubleTap',
+  doubleTapLeft = 'doubleTapLeft',
+  doubleTapRight= 'doubleTapRight'
 }
 
 enum FadeTime {
@@ -87,11 +90,12 @@ interface IVolumeClasses {
   volume: string;
   range: string;
 }
-interface IVideoPlayerUIParam {
+export interface IVideoPlayerUIParam {
   volumeValue: number;
   icons: string;
   subtitles?: NodeListOf<HTMLTrackElement> | null;
-  subtitlesInit?: boolean;
+  subtitlesInit?: boolean | undefined;
+  timeTrackOffset?: number | undefined
 }
 
 enum Browser {
@@ -104,12 +108,13 @@ enum Browser {
   unknown = 'unknown',
 }
 
-class VideoPlayerUI implements IVideoPlayerUI {
-  private container: HTMLDivElement | null;
-  private volumeValue: number;
-  private subtitlesList: NodeListOf<HTMLTrackElement> | null;
-  private icons: string;
-  private subtitlesInit?: boolean;
+export class VideoPlayerUI implements IVideoPlayerUI {
+  protected container: HTMLDivElement | null;
+  protected volumeValue: number;
+  protected subtitlesList: NodeListOf<HTMLTrackElement> | null;
+  protected icons: string;
+  protected subtitlesInit?: boolean | undefined;
+  protected timeTrackOffset?: number | undefined;;
 
   constructor(videoContainer: HTMLDivElement | null, param: IVideoPlayerUIParam) {
     this.container = videoContainer;
@@ -121,14 +126,16 @@ class VideoPlayerUI implements IVideoPlayerUI {
     this.overlayPlay = this.overlayPlay.bind(this);
     this.subtitles = this.subtitles.bind(this);
     this.subtitlesInit = param.subtitlesInit;
+    this.timeTrackOffset = param.timeTrackOffset;
   }
 
   unMount = (): void => {
     this.controls(this.container, true);
     this.overlayPlay(true);
+    this.doubleTap(true);
   };
 
-  private subtitles({
+  protected subtitles({
     btn,
     cItem,
     listTrack,
@@ -162,61 +169,61 @@ class VideoPlayerUI implements IVideoPlayerUI {
 
     return this.subtitlesInit
       ? `
-    <div class="player-btn-pp palyer-subtitle-container">
+    <div class="player-btn-pp player-subtitle-container">
       <div class="subtitle-list ${listTrack}" style="display: none">
         ${trackList()}
       </div>
-      <button class="${btn} btn-cc contarols-btn">CC</button>
+      <button class="${btn} btn-cc controls-btn">CC</button>
     </div>
     `
       : '';
   }
 
-  private volume({ btn, volume, range }: IVolumeClasses) {
+  protected volume({ btn, volume, range }: IVolumeClasses) {
     return `
-      <div class="player-btn-pp palyer-volume-container">
+      <div class="player-btn-pp player-volume-container">
 
-        <div class="palyer-volume-range-wrap ${range}" style="display: none;">
+        <div class="player-volume-range-wrap ${range}" style="display: none;">
           <input type="range" class="input-player-range ${volume}" value="${this.volumeValue}" name="volume" min="0" max="100">
-          <div class="palyer-volume-label">
+          <div class="player-volume-label">
             ${this.volumeValue}%
           </div>
         </div>
        
-        <button class="${btn} contarols-btn">
+        <button class="${btn} controls-btn">
            <img src="${this.icons}/volume.svg" alt="volume"> 
         </button>
       </div>
     `;
   }
 
-  private fullscreen = (on: string, off: string) => {
+  protected fullscreen = (on: string, off: string) => {
     return `
         <div class="player-btn-pp">
-            <button class="${on} contarols-btn">
+            <button class="${on} controls-btn">
               <img src="${this.icons}/fullscreen.svg" alt="fullscreen on">
             </button>
-            <button class="${off} contarols-btn" style="display: none;">
+            <button class="${off} controls-btn" style="display: none;">
               <img src="${this.icons}/fullscreen-off.svg" alt="fullscreen off">
             </button>
           </div>
     `;
   };
 
-  private play(play: string, pause: string) {
+  protected play(play: string, pause: string) {
     return `
       <div class="player-btn-pp">
-        <button class="${play} contarols-btn">
+        <button class="${play} controls-btn">
           <img src="${this.icons}/play.svg" alt="play">
         </button>
-        <button class="${pause} contarols-btn" style="display: none;">
+        <button class="${pause} controls-btn" style="display: none;">
           <img src="${this.icons}/pause.svg" alt="pause">
         </button>
       </div>
     `;
   }
 
-  private track(container: string, progress: string, buffer: string, time: string, timeFull: string) {
+  protected track(container: string, progress: string, buffer: string, time: string, timeFull: string) {
     return `
         <div class="player-track-container">
           <div class="player-track-time">
@@ -236,7 +243,53 @@ class VideoPlayerUI implements IVideoPlayerUI {
       `;
   }
 
-  overlayPlay(isUnmount?: boolean): IElementsReturn {
+  protected doubleTap(isUnmount?: boolean): IElementsReturn{
+    const uiClasses = {
+      doubleTapLeft: UiClasses.doubleTapLeft,
+      doubleTapRight: UiClasses.doubleTapRight,
+      doubleTap: UiClasses.doubleTap
+    };
+
+    if (!isUnmount && this.container) {
+
+      const tap = `
+        <div class="double-tap-container ${uiClasses.doubleTap} ${uiClasses.doubleTapLeft}" data-tap="left">
+          <div class="double-tap-icon-wrap">
+            <img src="${this.icons}/fast-forward.svg" class="rot-180" alt="tap-left"> 
+            <div>${this.timeTrackOffset || ""}</div>
+          </div>
+        </div>
+        <div class="double-tap-container ${uiClasses.doubleTap} ${uiClasses.doubleTapRight}" data-tap="right">
+          <div class="double-tap-icon-wrap">
+            <div>${this.timeTrackOffset || ""}</div>
+            <img src="${this.icons}/fast-forward.svg" alt="tap-right">  
+          </div>
+        </div>
+    `;
+
+      this.container.insertAdjacentHTML('beforeend', tap);
+
+      return {
+        status: 'insert',
+        class: "double-tap-container",
+        ui: Object.values(uiClasses),
+      };
+    }
+
+    const tapLeft = this.container?.querySelector(`.${uiClasses.doubleTapLeft}`);
+    const tapRight = this.container?.querySelector(`.${uiClasses.doubleTapRight}`);
+    tapLeft?.remove();
+    tapRight?.remove();
+
+    return {
+      status: 'remove',
+      class: `double-tap-container`,
+      ui: [],
+    };
+
+  }
+
+  protected overlayPlay(isUnmount?: boolean): IElementsReturn {
     const className = 'overlay-play';
     const uiClasses = {
       container: UiClasses.videoContainerOverlay,
@@ -298,7 +351,7 @@ class VideoPlayerUI implements IVideoPlayerUI {
       };
     }
 
-    const constrols = `
+    const controls = `
       <div class="video-player-controls ${className}" style="display: none">
         <div class="player-btn-left">
           ${this.play(uiClasses.play, uiClasses.pause)}
@@ -319,7 +372,7 @@ class VideoPlayerUI implements IVideoPlayerUI {
       </div>
     `;
 
-    container?.insertAdjacentHTML('beforeend', constrols);
+    container?.insertAdjacentHTML('beforeend', controls);
 
     return {
       status: 'insert',
@@ -332,16 +385,25 @@ class VideoPlayerUI implements IVideoPlayerUI {
     return {
       controls: this.controls(this.container),
       overlayPLay: this.overlayPlay(),
+      doubleTap: this.doubleTap()
     };
   };
 }
+
 
 export interface IVideoPlayer {
   videoContainer: string;
   iconsFolder: string;
   subtitle?: boolean;
   volumeValue?: number;
-  timeTrackOffest?: number;
+  timeTrackOffset?: number;
+  videoPlayerUI?: (videoContainer: HTMLDivElement | null, param: IVideoPlayerUIParam)=> IVideoPlayerUI;
+}
+
+export enum IVideoPlayerDefaultConst {
+  volume = 100,
+  timeTrackOffset = 3,
+
 }
 
 export class VideoPlayer {
@@ -358,48 +420,57 @@ export class VideoPlayer {
   private subtitlesIndex: number = -1;
   private isSubtitles: boolean = false;
   private isTrack: boolean = false;
-  private ui?: VideoPlayerUI;
-  private timeTrackOffest: number;
+  private ui?: IVideoPlayerUI;
+  private timeTrackOffset: number;
   private mX: number = 0;
   private mY: number = 0;
   private isMouseHover: boolean = false;
   private unMountObject: { [key: string]: () => void } = {};
+  private tapedTwice = false;
 
-  constructor({ videoContainer, iconsFolder, volumeValue, subtitle, timeTrackOffest }: IVideoPlayer) {
+  constructor({ videoContainer, iconsFolder, volumeValue, subtitle, timeTrackOffset: timeTrackOffset, videoPlayerUI }: IVideoPlayer) {
     this.videoContainer = document.querySelector(videoContainer);
     this.video = this.videoContainer?.querySelector('video') || null;
-    this.volumeValue = volumeValue || 100;
+    this.volumeValue = volumeValue || IVideoPlayerDefaultConst.volume;
     this.iconsFolder = iconsFolder;
-    this.timeTrackOffest = timeTrackOffest || 3;
+    this.timeTrackOffset = timeTrackOffset || IVideoPlayerDefaultConst.timeTrackOffset;
     this.subtitles = this.video?.querySelectorAll('track') || null;
-    this.checkSelectors();
 
-    if (!this.checkSelectors() && this.videoContainer) {
+    if (!this.checkError() && this.videoContainer) {
       const container = this.videoContainer;
       this.video?.classList.add(UiClasses.video);
-      this.ui = new VideoPlayerUI(container, {
+      
+      const uiParam: IVideoPlayerUIParam = {
         volumeValue: this.volumeValue,
         icons: this.iconsFolder,
         subtitles: this.subtitles,
         subtitlesInit: subtitle,
-      });
+        timeTrackOffset: this.timeTrackOffset
+      } 
+
+     this.ui = videoPlayerUI ? videoPlayerUI(container,uiParam) : new VideoPlayerUI(container,uiParam);
+
       container.classList.add(this.userAgent().class);
+
       const uiList = this.ui.createUI();
+
       Object.keys(uiList).forEach((key: string) => {
         uiList[key].ui.forEach((i: string) => {
           this.controlsUI = { ...this.controlsUI, [i]: container.querySelector('.' + i) };
         });
       });
+      
     }
 
     this._onClickControls = this._onClickControls.bind(this);
     this._onChangePip = this._onChangePip.bind(this);
     this._onChangeFullScreen = this._onChangeFullScreen.bind(this);
     this.fadeOutIN = this.fadeOutIN.bind(this);
-    this._onChangeProgessVideo = this._onChangeProgessVideo.bind(this);
+    this._onChangeProgressVideo = this._onChangeProgressVideo.bind(this);
     this._onChangeVolume = this._onChangeVolume.bind(this);
     this._onEventKeywords = this._onEventKeywords.bind(this);
     this._onMouse = this._onMouse.bind(this);
+    this._onTouch = this._onTouch.bind(this);
   }
 
   get videoElement() {
@@ -421,38 +492,9 @@ export class VideoPlayer {
     }
   };
 
-  userAgent = (): { browser: string; class: string } => {
-    let sBrowser = Browser.unknown;
-    let cBrowser = 'br-unknown';
-
-    const sUsrAg = this.navigator.userAgent;
-
-    if (sUsrAg.indexOf('Firefox') > -1) {
-      sBrowser = Browser.moz;
-      cBrowser = 'br-moz';
-    } else if (sUsrAg.indexOf('Opera') > -1) {
-      sBrowser = Browser.opera;
-      cBrowser = 'br-opera';
-    } else if (sUsrAg.indexOf('Trident') > -1) {
-      sBrowser = Browser.ie;
-      cBrowser = 'br-ie';
-    } else if (sUsrAg.indexOf('Edge') > -1) {
-      sBrowser = Browser.edge;
-      cBrowser = 'br-edge';
-    } else if (sUsrAg.indexOf('Chrome') > -1) {
-      sBrowser = Browser.google;
-      cBrowser = 'br-chrome';
-    } else if (sUsrAg.indexOf('Safari') > -1) {
-      sBrowser = Browser.safari;
-      cBrowser = 'br-safari';
-    }
-
-    return { browser: sBrowser, class: cBrowser };
-  };
-
-  checkSelectors = (): boolean => {
+  checkError= (): boolean => {
     if (!this.video) {
-      console.error('video selctor not found', this.video);
+      console.error('video selector not found', this.video);
       return true;
     }
 
@@ -461,23 +503,42 @@ export class VideoPlayer {
       return true;
     }
 
+    if (!this.iconsFolder) {
+      console.error('not fount url to icon field', this.iconsFolder);
+      return true;
+    }
+
     return false;
   };
+  
+  private _onTouch() {
+    const tapHandler = (event) => {
+        const target = event.target;
+        const tap = target.dataset.tap;
+        if(!this.tapedTwice) {
+            this.tapedTwice = true;
+            setTimeout( () => { this.tapedTwice = false;}, 300 );
+            return false;
+        }
+        event.preventDefault();
+        target.classList.add("tap-active");
+        setTimeout( () => { target.classList.remove("tap-active")}, 500 );
+        if(this.video && this.isPlay && tap === "right"){
+          this.video.currentTime += this.timeTrackOffset;
+        }
 
-  private secondsToHms(d: number) {
-    d = Number(d);
-    const h = Math.floor(d / 3600);
-    const m = Math.floor((d % 3600) / 60);
-    const s = Math.floor((d % 3600) % 60);
-    const zero = (a: number) => {
-      return a > 9 ? a : '0' + a;
-    };
-    return {
-      h,
-      m,
-      s,
-      time: `${zero(m)}:${zero(s)}`,
-    };
+        if(this.video && this.isPlay && tap === "left"){
+          this.video.currentTime -= this.timeTrackOffset;
+        }
+     }
+
+     this.controlsUI[UiClasses.doubleTapLeft]?.addEventListener("touchstart", tapHandler);
+     this.controlsUI[UiClasses.doubleTapRight]?.addEventListener("touchstart", tapHandler);
+
+     return () => {
+        this.controlsUI[UiClasses.doubleTapLeft]?.removeEventListener("touchstart", tapHandler);
+        this.controlsUI[UiClasses.doubleTapRight]?.removeEventListener("touchstart", tapHandler);
+     }
   }
   private _onMouse() {
     const onmousemove = (e: MouseEvent) => {
@@ -722,7 +783,7 @@ export class VideoPlayer {
     };
   }
 
-  private _onChangeProgessVideo() {
+  private _onChangeProgressVideo() {
     const video = this.video as HTMLVideoElement;
 
     const videoEnd = () => {
@@ -818,12 +879,12 @@ export class VideoPlayer {
             break;
           case 37: // <
             if (this.isPlay) {
-              this.video.currentTime -= this.timeTrackOffest;
+              this.video.currentTime -= this.timeTrackOffset;
             }
             break;
           case 39: // >
             if (this.isPlay) {
-              this.video.currentTime += this.timeTrackOffest;
+              this.video.currentTime += this.timeTrackOffset;
             }
             break;
           default:
@@ -860,14 +921,15 @@ export class VideoPlayer {
   }
 
   playerInit = () => {
-    if (!this.checkSelectors() && this.video) {
+    if (!this.checkError() && this.video) {
       this.unMountObject['_onClickControls'] = this._onClickControls();
       this.unMountObject['_onChangePip'] = this._onChangePip();
       this.unMountObject['_onChangeFullScreen'] = this._onChangeFullScreen();
-      this.unMountObject['_onChangeProgessVideo'] = this._onChangeProgessVideo();
+      this.unMountObject['_onChangeProgressVideo'] = this._onChangeProgressVideo();
       this.unMountObject['_onChangeVolume'] = this._onChangeVolume();
       this.unMountObject['_onEventKeywords'] = this._onEventKeywords();
       this.unMountObject['_onMouse'] = this._onMouse();
+      this.unMountObject['_onTouch'] = this._onTouch();
       this.video.volume = this.volumeValue / 100;
     }
   };
@@ -902,6 +964,51 @@ export class VideoPlayer {
         requestAnimationFrame(fade);
       }
     })();
+  }
+
+  userAgent = (): { browser: string; class: string } => {
+    let sBrowser = Browser.unknown;
+    let cBrowser = 'br-unknown';
+
+    const sUsrAg = this.navigator.userAgent;
+
+    if (sUsrAg.indexOf('Firefox') > -1) {
+      sBrowser = Browser.moz;
+      cBrowser = 'br-moz';
+    } else if (sUsrAg.indexOf('Opera') > -1) {
+      sBrowser = Browser.opera;
+      cBrowser = 'br-opera';
+    } else if (sUsrAg.indexOf('Trident') > -1) {
+      sBrowser = Browser.ie;
+      cBrowser = 'br-ie';
+    } else if (sUsrAg.indexOf('Edge') > -1) {
+      sBrowser = Browser.edge;
+      cBrowser = 'br-edge';
+    } else if (sUsrAg.indexOf('Chrome') > -1) {
+      sBrowser = Browser.google;
+      cBrowser = 'br-chrome';
+    } else if (sUsrAg.indexOf('Safari') > -1) {
+      sBrowser = Browser.safari;
+      cBrowser = 'br-safari';
+    }
+
+    return { browser: sBrowser, class: cBrowser };
+  };
+
+  private secondsToHms(d: number) {
+    d = Number(d);
+    const h = Math.floor(d / 3600);
+    const m = Math.floor((d % 3600) / 60);
+    const s = Math.floor((d % 3600) % 60);
+    const zero = (a: number) => {
+      return a > 9 ? a : '0' + a;
+    };
+    return {
+      h,
+      m,
+      s,
+      time: `${zero(m)}:${zero(s)}`,
+    };
   }
 
   private fadeOutIN(

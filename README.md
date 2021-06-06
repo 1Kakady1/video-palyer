@@ -38,7 +38,10 @@ const video = new VideoPlayer({
   iconsFolder: './assets/images/icons',
   volumeValue: 50,
   subtitle: true,
-  timeTrackOffest: 2
+  timeTrackOffset: 2,
+  videoPlayerUI: function(videoContainer: HTMLDivElement | null, param: IVideoPlayerUIParam){
+    return new MyPlayerUI(videoContainer,{...param})
+  }
 });
 
 video.playerInit();
@@ -50,7 +53,8 @@ video.playerInit();
 | iconsFolder      | Link to icons for the ui |
 | volumeValue      | Initial volume value (default: 0) |
 | subtitle      | Whether to include subtitles (default: false)|
-| timeTrackOffest      | Fast forward and rewind for n seconds (default: 3)|
+| timeTrackOffset      | Fast forward and rewind for n seconds (default: 3)|
+| videoPlayerUI      | creating a custom ui instead of the standard one (doesn't work correctly|
 
 ### Public functions:
 
@@ -61,7 +65,7 @@ video.playerInit();
 | controls     | get controls element |
 | isVideoPlay     | check is play video (return true/false) |
 | videoElement    | get video element |
-| userAgent     | get bowser name |
+| userAgent     | get browser name |
 | fadeIn    | show element ({ el, display = 'block', time = 10, callback = undefined }) |
 | fadeOut    |hide element ({ el, time = 10, callback = undefined }) |
 
@@ -80,15 +84,15 @@ enum UiClasses {
   track = 'playerTrack',
   volume = 'videoVolume',
   rangeVolume = 'videoVolumeRange',
-  labelValue = 'palyer-volume-label',
-  volumeProgressContainer = 'palyerVolumeContainer',
+  labelValue = 'player-volume-label',
+  volumeProgressContainer = 'playerVolumeContainer',
   videoPlayerControls = 'videoPlayerControls',
   videoContainerOverlay = 'overlayVideoContainer',
   videoOverlayBtn = 'overlayVideoBtn',
   trackTime = 'palyertrackTime',
-  trackTimeFull = 'palyertrackTimeFull',
-  subtitleBtn = 'palyerSubtitleBtn',
-  subtitleItem = 'palyerSubtitleItem',
+  trackTimeFull = 'playertrackTimeFull',
+  subtitleBtn = 'playerSubtitleBtn',
+  subtitleItem = 'playerSubtitleItem',
   subtitleList = 'palyersubtitleList',
   video = "playerVideo",
 }

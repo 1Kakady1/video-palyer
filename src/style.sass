@@ -6,6 +6,7 @@ $bgBuffer: #777
 $bgTrack: #555
 $subtitle: #fff
 $subtitleZIndex: 2;
+$tapColor: #fff
 
 html, body, div, span, p, audio, video
     margin: 0;
@@ -15,16 +16,19 @@ html, body, div, span, p, audio, video
     font: inherit;
     vertical-align: baseline;
 body
-    display: flex;
-    align-items: center;
-    justify-content: center;
     height: 100vh;
-    background-color: #0075ff
+    background-color: #0075ff;
+.video-list
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 .video-player-wrap
     position: relative;
     width: 360px;
     height: 460px;
     background-color: $bgColorPlayerConrainer;
+    margin-top: 20px;
+    margin-bottom: 20px
     div,p,span,video
     video
         width: 100%;
@@ -63,7 +67,7 @@ video::cue
     button::-moz-focus-inner
         border: 0;
 
-.contarols-btn
+.controls-btn
     position: relative;
     width: 26px;
     height: 26px;
@@ -147,16 +151,16 @@ video::cue
         height: 100%;
         background-color: $bgProgress;
         width: 0;
-.palyer-volume-container
+.player-volume-container
     position: relative
 .videoVolumeRange
     font-size: 15px
-.palyer-volume-label
+.player-volume-label
     font-size: 12px
     color: #fff;
     width: 32px;
     margin-left: 8px;
-.palyer-volume-range-wrap
+.player-volume-range-wrap
     position: absolute;
     right: 0px;
     bottom: 42px
@@ -191,7 +195,7 @@ video::cue
             width: 110px;
             height: 142px;
             transform: translate(-50%, -50%)
-.palyer-subtitle-container
+.player-subtitle-container
     position: relative
     .subtitle-list
         position: absolute;
@@ -233,5 +237,44 @@ video::cue
     .video-player-wrap
         width: 800px;
         height: 600px;
+.doubleTap
+    position: absolute;
+    z-index: 4;
+    width: 100px
+    height: 100%;
+    top: 0
+    display: flex
+    align-items: center;
+    justify-content: center
+    &Left
+        left: 0px
+    &Right
+        right: 0px
+    &.tap-active
+        .double-tap-icon-wrap
+            opacity: 1;
+            visibility: visible
+            transition: all 300ms
+    .double-tap-icon-wrap
+        opacity: 0;
+        visibility: hidden
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 300ms
+        img
+            width: 30%
+            height: 30%
+        div
+            font-size: 18px;
+            font-weight: bold;
+            margin-left: 6px;
+            margin-right: 6px;
+            color: $tapColor
+.rot-180
+    transform: rotate(180deg)
+// @media screen and (min-width: 1200px)
+//     .doubleTap
+//         display: none
 // range
 @import ./app/range.scss
