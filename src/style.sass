@@ -41,9 +41,8 @@ body
             display: none!important;
         &::-webkit-media-controls-enclosure
             display: none!important;
-    &.br-moz video::cue
-        line-height: 3
-
+        &::cue
+            line-height: 1.5
 video::cue
     color: $subtitle;
 .video-player-controls
@@ -273,6 +272,19 @@ video::cue
             color: $tapColor
 .rot-180
     transform: rotate(180deg)
+.playToTimeContainer
+    position: absolute;
+    z-index: 10;
+    background: #fff;
+    left: 50%;
+    top: 73%;
+    transform: translate(-50%, -50%);
+    padding: 8px;
+    border-radius: 5px;
+    max-width: 112px;
+    cursor: pointer;
+    div
+        pointer-events: none;
 // @media screen and (min-width: 1200px)
 //     .doubleTap
 //         display: none

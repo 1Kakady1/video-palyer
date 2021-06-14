@@ -34,7 +34,7 @@ yarn run build
 Init:
 ```
 const video = new VideoPlayer({
-  videoContainer: '.player-conrainer',
+  videoContainer: '.player-container',
   iconsFolder: './assets/images/icons',
   volumeValue: 50,
   subtitle: true,
@@ -46,6 +46,11 @@ const video = new VideoPlayer({
 
 video.playerInit();
 ```
+The video wrappers must contain the date attribute:
+```
+data-name="video-2"
+```
+Information about the current video is located in localstorage by the key: <b>player-info</b>
 ### Constructor:
 | Params      | Description |
 | ----------- | ----------- |
@@ -55,19 +60,32 @@ video.playerInit();
 | subtitle      | Whether to include subtitles (default: false)|
 | timeTrackOffset      | Fast forward and rewind for n seconds (default: 3)|
 | videoPlayerUI      | creating a custom ui instead of the standard one (doesn't work correctly|
+| storeTimeOffset     | Refresh interval for starting the video from a certain point (default: 4) |
 
 ### Public functions:
 
 | Function     | Description |
 | ----------- | ----------- |
 | playerInit     | init player and create UI |
+| play     | play video |
+| playTo     | play video to time |
+| stop     | stop video |
+| pause     | pause video |
 | unMount     | remove events and UI |
 | controls     | get controls element |
 | isVideoPlay     | check is play video (return true/false) |
 | videoElement    | get video element |
+
+
+### Utils functions:
+
+| Function     | Description |
+| ----------- | ----------- |
+| fadeOutIn     | hide old element and show new |
 | userAgent     | get browser name |
 | fadeIn    | show element ({ el, display = 'block', time = 10, callback = undefined }) |
 | fadeOut    |hide element ({ el, time = 10, callback = undefined }) |
+| secondsToHms     | convert time |
 
 ## UI classes
 
@@ -95,5 +113,10 @@ enum UiClasses {
   subtitleItem = 'playerSubtitleItem',
   subtitleList = 'palyersubtitleList',
   video = "playerVideo",
+  doubleTap = 'doubleTap',
+  doubleTapLeft = 'doubleTapLeft',
+  doubleTapRight= 'doubleTapRight',
+  playToTime = "playToTimeBtn",
+  playToTimeContainer= 'playToTimeContainer'
 }
 ```

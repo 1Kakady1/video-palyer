@@ -1,12 +1,12 @@
 import './style.sass';
-import { IElementsReturn, IVideoPlayerDefaultConst, IVideoPlayerUIParam, UiClasses, VideoPlayer, VideoPlayerUI } from './app/index';
+import {  VideoPlayer } from './app/index';
 
 /*
 * Init default video 
 */
 /*
 const video = new VideoPlayer({
-  videoContainer: '.player-conrainer',
+  videoContainer: '.player-container',
   iconsFolder: './assets/images/icons',
   volumeValue: 50,
   subtitle: true,
@@ -24,7 +24,7 @@ video.playerInit();
 */
 
 const videoStack: VideoPlayer[] = [];
-const videoList = document.querySelectorAll(".video-list .player-conrainer");
+const videoList = document.querySelectorAll(".video-list .player-container");
 
 videoList.forEach((item)=>{
 
@@ -32,7 +32,7 @@ videoList.forEach((item)=>{
   const videoPlayer = new VideoPlayer({
     videoContainer: `.${(item as HTMLDivElement).dataset.name}`,
     iconsFolder: './assets/images/icons',
-    volumeValue: 50,
+    volumeValue: 10,
     subtitle: !!videoSubtitles.length,
     timeTrackOffset: 2
   });
@@ -41,3 +41,5 @@ videoList.forEach((item)=>{
   videoStack.push(videoPlayer);
 
 })
+
+console.log(videoStack,videoList)
