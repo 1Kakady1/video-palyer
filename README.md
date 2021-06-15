@@ -46,12 +46,44 @@ const video = new VideoPlayer({
 
 video.playerInit();
 ```
+Init to video list:
+```
+import {  VideoPlayer, VideoUtils} from './app/index';
+
+const videoStack = {};
+const videoList = document.querySelectorAll(".video-list .player-container");
+const utils = new VideoUtils();
+
+videoList.forEach((item)=>{
+
+  const videoSubtitles = item.querySelectorAll("video track"); 
+  const videoPlayer = new VideoPlayer({
+    videoContainer: `.${item.dataset.name}`,
+    iconsFolder: './assets/images/icons',
+    volumeValue: 1,
+    subtitle: !!videoSubtitles.length,
+    timeTrackOffset: 2
+  });
+
+  videoPlayer.playerInit();
+  videoStack[(item as HTMLDivElement).dataset.name || "unknown"]= videoPlayer;
+
+});
+// Pause a video if another video is running
+utils.eventChangeStor(function(e){
+  const info = localStorage.getItem(utils.storeKey);
+  if(info && e.detail !== info){
+    const data = JSON.parse(info)
+    videoStack[data.name].pause();
+  }
+})
+```
 The video wrappers must contain the date attribute:
 ```
 data-name="video-2"
 ```
 Information about the current video is located in localstorage by the key: <b>player-info</b>
-### Constructor:
+### Constructor (VideoPlayer class):
 | Params      | Description |
 | ----------- | ----------- |
 | videoContainer      | The class of the container where the video is placed |
@@ -62,7 +94,7 @@ Information about the current video is located in localstorage by the key: <b>pl
 | videoPlayerUI      | creating a custom ui instead of the standard one (doesn't work correctly|
 | storeTimeOffset     | Refresh interval for starting the video from a certain point (default: 4) |
 
-### Public functions:
+### Public functions (VideoPlayer class):
 
 | Function     | Description |
 | ----------- | ----------- |
@@ -72,12 +104,14 @@ Information about the current video is located in localstorage by the key: <b>pl
 | stop     | stop video |
 | pause     | pause video |
 | unMount     | remove events and UI |
+| unMountUI     | remove  UI |
+| unMountEvent     | remove events |
 | controls     | get controls element |
 | isVideoPlay     | check is play video (return true/false) |
 | videoElement    | get video element |
 
 
-### Utils functions:
+### Utils functions (VideoUtils class):
 
 | Function     | Description |
 | ----------- | ----------- |
@@ -86,6 +120,12 @@ Information about the current video is located in localstorage by the key: <b>pl
 | fadeIn    | show element ({ el, display = 'block', time = 10, callback = undefined }) |
 | fadeOut    |hide element ({ el, time = 10, callback = undefined }) |
 | secondsToHms     | convert time |
+| eventStoreDispatch     | dispatch event change to store |
+| eventChangeStor     | create event listener |
+| eventRemoveStore     | remove event listener  |
+| eventRemoveStore     | remove event listener  |
+| storeKey     | return key localstore  |
+
 
 ## UI classes
 

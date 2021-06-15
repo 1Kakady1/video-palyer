@@ -1,5 +1,5 @@
 import './style.sass';
-import {  VideoPlayer } from './app/index';
+import {  VideoPlayer, VideoUtils} from './app/index';
 
 /*
 * Init default video 
@@ -23,8 +23,13 @@ video.playerInit();
 *
 */
 
-const videoStack: VideoPlayer[] = [];
+interface IStackVideo{
+  [key: string]: VideoPlayer
+}
+
+const videoStack: IStackVideo = {};
 const videoList = document.querySelectorAll(".video-list .player-container");
+const utils = new VideoUtils();
 
 videoList.forEach((item)=>{
 
@@ -32,14 +37,20 @@ videoList.forEach((item)=>{
   const videoPlayer = new VideoPlayer({
     videoContainer: `.${(item as HTMLDivElement).dataset.name}`,
     iconsFolder: './assets/images/icons',
-    volumeValue: 10,
+    volumeValue: 1,
     subtitle: !!videoSubtitles.length,
-    timeTrackOffset: 2
+    timeTrackOffset: 20
   });
 
   videoPlayer.playerInit();
-  videoStack.push(videoPlayer);
+  videoStack[(item as HTMLDivElement).dataset.name || "unknown"]= videoPlayer;
 
+});
+
+utils.eventChangeStor(function(e){
+  const info = localStorage.getItem(utils.storeKey);
+  if(info && e.detail !== info){
+    const data = JSON.parse(info)
+    videoStack[data.name].pause();
+  }
 })
-
-console.log(videoStack,videoList)

@@ -1,7 +1,5 @@
-type status = 'remove' | 'insert';
-
 export interface IElementsReturn {
-  status: status;
+  remove: ()=>void;
   class: string;
   ui: string[];
 }
@@ -16,7 +14,7 @@ interface IVideoPlayerElementsCreate {
 
 interface IVideoPlayerUI {
   unMount: () => void;
-  controls: (container: HTMLDivElement | null, isUnmount?: boolean) => IElementsReturn;
+  controls: (container: HTMLDivElement | null) => IElementsReturn;
   createUI: () => IVideoPlayerElementsCreate;
 }
 
@@ -117,7 +115,8 @@ enum Browser {
 }
 enum PlayerKey{
   storeInfo = "player-info",
-  dataset = "name"
+  dataset = "name",
+  storeInfoPrev = "player-info-prev",
 }
 interface IPlayerStoreTime{
   name: string;
@@ -140,7 +139,7 @@ export enum IVideoPlayerDefaultConst {
 }
 
 export class VideoPlayerUI implements IVideoPlayerUI {
-  //TODO: Нужен рефакторинг
+
   protected container: HTMLDivElement | null;
   protected volumeValue: number;
   protected subtitlesList: NodeListOf<HTMLTrackElement> | null;
@@ -149,6 +148,7 @@ export class VideoPlayerUI implements IVideoPlayerUI {
   protected timeTrackOffset?: number | undefined;
   private storeTime: number;
   private utils: IVideoUtils;
+  private unMountList: {[key: string]: ()=> void} = {};
 
   constructor(videoContainer: HTMLDivElement | null, param: IVideoPlayerUIParam) {
     this.container = videoContainer;
@@ -166,9 +166,9 @@ export class VideoPlayerUI implements IVideoPlayerUI {
   }
 
   unMount = (): void => {
-    this.controls(this.container, true);
-    this.overlayPlay(true);
-    this.doubleTap(true);
+    for (var key in this.unMountList) {
+      this.unMountList[key]();
+    }
   };
 
   protected subtitles({
@@ -279,81 +279,72 @@ export class VideoPlayerUI implements IVideoPlayerUI {
       `;
   }
 
-  protected doubleTap(isUnmount?: boolean): IElementsReturn{
+  protected doubleTap(): IElementsReturn{
     const uiClasses = {
       doubleTapLeft: UiClasses.doubleTapLeft,
       doubleTapRight: UiClasses.doubleTapRight,
       doubleTap: UiClasses.doubleTap
     };
 
-    if (!isUnmount && this.container) {
-
-      const tap = `
-        <div class="double-tap-container ${uiClasses.doubleTap} ${uiClasses.doubleTapLeft}" data-tap="left">
-          <div class="double-tap-icon-wrap">
-            <img src="${this.icons}/fast-forward.svg" class="rot-180" alt="tap-left"> 
-            <div>${this.timeTrackOffset || ""}</div>
-          </div>
+    const tap = `
+      <div class="double-tap-container ${uiClasses.doubleTap} ${uiClasses.doubleTapLeft}" data-tap="left">
+        <div class="double-tap-icon-wrap">
+          <img src="${this.icons}/fast-forward.svg" class="rot-180" alt="tap-left"> 
+          <div>${this.timeTrackOffset || ""}</div>
         </div>
-        <div class="double-tap-container ${uiClasses.doubleTap} ${uiClasses.doubleTapRight}" data-tap="right">
-          <div class="double-tap-icon-wrap">
-            <div>${this.timeTrackOffset || ""}</div>
-            <img src="${this.icons}/fast-forward.svg" alt="tap-right">  
-          </div>
+      </div>
+      <div class="double-tap-container ${uiClasses.doubleTap} ${uiClasses.doubleTapRight}" data-tap="right">
+        <div class="double-tap-icon-wrap">
+          <div>${this.timeTrackOffset || ""}</div>
+          <img src="${this.icons}/fast-forward.svg" alt="tap-right">  
         </div>
-    `;
+      </div>
+  `;
 
-      this.container.insertAdjacentHTML('beforeend', tap);
+    this.container?.insertAdjacentHTML('beforeend', tap);
 
-      return {
-        status: 'insert',
-        class: "double-tap-container",
-        ui: Object.values(uiClasses),
-      };
+    this.unMountList["_doubleTap"]= () =>{
+      const tapLeft = this.container?.querySelector(`.${uiClasses.doubleTapLeft}`);
+      const tapRight = this.container?.querySelector(`.${uiClasses.doubleTapRight}`);
+      tapLeft?.remove();
+      tapRight?.remove();
     }
 
-    const tapLeft = this.container?.querySelector(`.${uiClasses.doubleTapLeft}`);
-    const tapRight = this.container?.querySelector(`.${uiClasses.doubleTapRight}`);
-    tapLeft?.remove();
-    tapRight?.remove();
-
     return {
-      status: 'remove',
-      class: `double-tap-container`,
-      ui: [],
+      remove: this.unMountList["_doubleTap"],
+      class: "double-tap-container",
+      ui: Object.values(uiClasses),
     };
 
   }
 
-  protected overlayPlay(isUnmount?: boolean): IElementsReturn {
+  protected overlayPlay(): IElementsReturn {
     const className = 'overlay-play';
     const uiClasses = {
       container: UiClasses.videoContainerOverlay,
       btn: UiClasses.videoOverlayBtn,
     };
 
-    if (!isUnmount && this.container) {
+
       const overlay = `
         <div class="${className} ${uiClasses.container}">
             <div class="play-icon ${uiClasses.btn}"></div>
         </div>
       `;
 
-      this.container.insertAdjacentHTML('beforeend', overlay);
+      this.container?.insertAdjacentHTML('beforeend', overlay);
 
-      return {
-        status: 'insert',
-        class: className,
-        ui: Object.values(uiClasses),
-      };
+
+    
+    this.unMountList["_overlayPlay"] = () =>{
+      const el = this.container?.querySelector(`.${className}`);
+      el?.remove();
     }
 
-    const el = this.container?.querySelector(`.${className}`);
-    el?.remove();
     return {
-      status: 'remove',
+      remove: this.unMountList["_overlayPlay"],
       class: className,
-      ui: [],
+      ui: Object.values(uiClasses),
     };
   }
 
@@ -364,32 +355,28 @@ export class VideoPlayerUI implements IVideoPlayerUI {
       btn: UiClasses.playToTime,
     };
 
-    if (!isUnmount && this.container) {
+ 
       const btn = `
         <div class="${className}" style="display: ${!this.storeTime ? "none" : "block"}">
             <div class="play-icon ${uiClasses.btn}">start ${this.utils.secondsToHms(this.storeTime).time}</div>
         </div>
       `;
 
-      this.container.insertAdjacentHTML('beforeend', btn);
+      this.container?.insertAdjacentHTML('beforeend', btn);
+      this.unMountList["_storeTimeBtn"] = ()=>{
+        const el = this.container?.querySelector(`.${className}`);
+        el?.remove();
+      };
 
       return {
-        status: 'insert',
+        remove: this.unMountList["_storeTimeBtn"],
         class: className,
         ui: Object.values(uiClasses),
       };
-    }
-
-    const el = this.container?.querySelector(`.${className}`);
-    el?.remove();
-    return {
-      status: 'remove',
-      class: className,
-      ui: [],
-    };
+  
   }
 
-  controls(container: HTMLDivElement | null, isUnmount?: boolean): IElementsReturn {
+  controls(container: HTMLDivElement | null): IElementsReturn {
     const className = 'videoPlayerControls';
     const uiClasses = {
       play: UiClasses.play,
@@ -408,16 +395,6 @@ export class VideoPlayerUI implements IVideoPlayerUI {
       subtitleItem: UiClasses.subtitleItem,
       cc: UiClasses.subtitleBtn,
     };
-
-    if (isUnmount) {
-      const el = this.container?.querySelector(`.${className}`);
-      el?.remove();
-      return {
-        status: 'remove',
-        class: className,
-        ui: [],
-      };
-    }
 
     const controls = `
       <div class="video-player-controls ${className}" style="display: none">
@@ -442,8 +419,13 @@ export class VideoPlayerUI implements IVideoPlayerUI {
 
     container?.insertAdjacentHTML('beforeend', controls);
 
+    this.unMountList["_controls"] = ()=>{
+      const el = this.container?.querySelector(`.${className}`);
+      el?.remove();
+    }
+
     return {
-      status: 'insert',
+      remove: this.unMountList["_controls"],
       class: className,
       ui: Object.values(uiClasses),
     };
@@ -552,11 +534,20 @@ export class VideoPlayer {
     return this.isPlay;
   }
 
-  unMount = (): void => {
+  unMountUI = ():void =>{
     this.ui?.unMount();
+  }
+
+  unMountEvent = (): void => {
     for (var key in this.unMountObject) {
       this.unMountObject[key]();
     }
+    this.utils.eventRemoveStore(()=> 0);
+  }
+
+  unMount = (): void => {
+    this.unMountUI();
+    this.unMountEvent();
   };
 
   checkError= (): boolean => {
@@ -718,6 +709,7 @@ export class VideoPlayer {
           }
         },
         [UiClasses.videoOverlayBtn]: () => {
+          this.utils.eventStoreDispatch();
           this.video?.play();
           this.setStoreTime(this.video?.currentTime || 0);
         },
@@ -759,7 +751,7 @@ export class VideoPlayer {
           }
         },
         [UiClasses.playToTimeContainer]: ()=>{
-          this.playTo(this.timeStore)
+          this.playTo(this.timeStore);
         }
       };
 
@@ -950,6 +942,7 @@ export class VideoPlayer {
               this.video.pause();
             } else {
               this.isPlay = true;
+              this.utils.eventStoreDispatch();
               this.video.play();
             }
             this.setStoreTime(this.video?.currentTime || 0)
@@ -998,10 +991,12 @@ export class VideoPlayer {
   }
   private setStoreTime = (time: number) =>{
     this.timeStore = time;
+    localStorage.setItem(PlayerKey.storeInfoPrev, localStorage.getItem(PlayerKey.storeInfo) || "not found");
     localStorage.setItem(PlayerKey.storeInfo, JSON.stringify({name: this.name, time}));
   }
   private removeStoreTime = () =>{
     localStorage.removeItem(PlayerKey.storeInfo);
+    localStorage.removeItem(PlayerKey.storeInfoPrev);
     this.timeStore = 0;
   }
 
@@ -1021,6 +1016,7 @@ export class VideoPlayer {
       time: 0
     }
   }
+
   play = () =>{
     this.isPlay = true;
     this.utils.fadeOutIN(UiClasses.pause, UiClasses.play, FadeTime.controls, this.controlsUI);
@@ -1075,21 +1071,13 @@ export class VideoPlayer {
     }
   };
 }
-interface IFadeOutIn{
-  showClassEl: string,
-  hideClassEl: string,
-  time: number,
-  controlsUI: IUi,
-  param?: {
-    callback?: () => void;
-    display?: string;
-  }
-}
+
 interface IVideoUtils{
   fadeIn: (value: IFade) => void;
   fadeOut: (value: IFade) => void;
   userAgent: () => IBrowser;
-  fadeOutIN:(    showClassEl: string,
+  fadeOutIN:(
+    showClassEl: string,
     hideClassEl: string,
     time: number,
     controlsUI: IUi,
@@ -1102,11 +1090,23 @@ interface IVideoUtils{
     m: number,
     s: number,
     time: string,
-  }
+  };
+  eventStoreDispatch: ()=> void;
+  eventChangeStor:  (callback: (e)=> void ) => void;
+  eventRemoveStore: (callback: (e) => void) => void;
 }
-class VideoUtils implements IVideoUtils {
+export class VideoUtils implements IVideoUtils {
 
   private navigator = window.navigator;
+  private event;
+
+  constructor(){
+    this.event = new Event(PlayerKey.storeInfo);
+  }
+
+  get storeKey(){
+    return PlayerKey.storeInfo;
+  }
 
   fadeIn({ el, display = 'block', time = 10, callback }: IFade) {
     el.style.opacity = '0';
@@ -1210,4 +1210,21 @@ class VideoUtils implements IVideoUtils {
       time: `${zero(m)}:${zero(s)}`,
     };
   }
+
+  eventStoreDispatch(){
+    this.event.detail = localStorage.getItem(PlayerKey.storeInfoPrev)
+    window.dispatchEvent(this.event);
+  }
+
+  eventChangeStor(callback: (e) => void){
+    window.addEventListener(PlayerKey.storeInfo, function (e) {
+      callback(e);
+    }, false);
+  }
+  eventRemoveStore(callback: (e) => void){
+    window.removeEventListener(PlayerKey.storeInfo,function (e) {
+      callback(e);
+    }, false)
+  }
+
 }
