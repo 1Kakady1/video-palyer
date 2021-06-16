@@ -160,3 +160,7 @@ enum UiClasses {
   playToTimeContainer= 'playToTimeContainer'
 }
 ```
+
+## Problems
+
+Doesn't always stop when using picture-in-picture in Firefox. The position of the subtitles on Firefox is displayed incorrectly. Errors in Safari (no device to fix and debug)

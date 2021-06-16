@@ -503,7 +503,7 @@ export class VideoPlayer {
           this.controlsUI = { ...this.controlsUI, [i]: container.querySelector('.' + i) };
         });
       });
-      console.log(uiList, this.controlsUI)
+
       if(this.video && this.video.textTracks){
         for (var i = 0; i < this.video.textTracks.length; i++) {
           this.video.textTracks[i].mode = "hidden";
@@ -576,8 +576,8 @@ export class VideoPlayer {
   
   private _onTouch() {
     const tapHandler = (event) => {
-        const target = event.target;
-        const tap = target.dataset.tap;
+        const target= event.target;
+        const tap: string = target.dataset.tap;
         if(!this.tapedTwice) {
             this.tapedTwice = true;
             setTimeout( () => { this.tapedTwice = false;}, 300 );
@@ -585,7 +585,13 @@ export class VideoPlayer {
         }
         event.preventDefault();
         target.classList.add("tap-active");
-        setTimeout( () => { target.classList.remove("tap-active")}, 500 );
+        
+        setTimeout( () => { 
+          target.classList.remove("tap-active")
+        }, 500 );
+        
+        
+        
         if(this.video && this.isPlay && tap === "right"){
           this.video.currentTime += this.timeTrackOffset;
         }

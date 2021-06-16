@@ -68,8 +68,8 @@ video::cue
 
 .controls-btn
     position: relative;
-    width: 26px;
-    height: 26px;
+    width: 24px;
+    height: 24px;
     border: none;
     background-color: transparent;
     cursor: pointer;
@@ -100,7 +100,7 @@ video::cue
     z-index: 3;
     position: relative;
     .player-track-time
-        font-size: 16px;
+        font-size: 10px;
         color: rgba(255,255,255, 0.5);
         font-weight: 500;
         font-style: italic;
@@ -192,7 +192,7 @@ video::cue
             top: 50%
             left: 50%
             width: 110px;
-            height: 142px;
+            height: 158px;
             transform: translate(-50%, -50%)
 .player-subtitle-container
     position: relative
@@ -222,20 +222,52 @@ video::cue
              border-bottom:  1px solid $bgProgress
              transition: all 1s ease-out;
     .btn-cc
-        font-size: 9px;
+        font-size: 7px;
         color: #fff
         border: 1px solid #fff
-        width: 20px;
-        height: 20px;
+        width: 16px;
+        height: 16px;
         padding: 0;
         border-radius: 20px
+.br-moz
+    .player-subtitle-container
+        .btn-cc
+            font-size: 7px;
+            width: 16px;
+            height: 16px;
+    .controls-btn
+        width: 20px;
+        height: 20px;
+    &.video-player-wrap
+        video
+            &::cue
+                line-height: 3
+    .overlay-play
+        .play-icon::before
+            height: 170px;
 .player-btn-pp
     margin-left: 4px
-    margin-right: 4px            
+    margin-right: 4px
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px
+    display: flex;            
 @media screen and (min-width: 992px)
     .video-player-wrap
         width: 800px;
         height: 600px;
+    .player-track-container
+        .player-track-time
+            font-size: 16px;
+    .controls-btn
+        width: 26px;
+        height: 26px;
+    .player-subtitle-container
+        .btn-cc
+            font-size: 9px;
+            width: 20px;
+            height: 20px;
 .doubleTap
     position: absolute;
     z-index: 4;
@@ -262,8 +294,8 @@ video::cue
         justify-content: center;
         transition: all 300ms
         img
-            width: 30%
-            height: 30%
+            width: 26px
+            height: 26px
         div
             font-size: 18px;
             font-weight: bold;

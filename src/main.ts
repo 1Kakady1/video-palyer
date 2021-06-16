@@ -34,16 +34,21 @@ const utils = new VideoUtils();
 videoList.forEach((item)=>{
 
   const videoSubtitles = item.querySelectorAll("video track"); 
+  const itemElement = item as HTMLDivElement
   const videoPlayer = new VideoPlayer({
-    videoContainer: `.${(item as HTMLDivElement).dataset.name}`,
+    videoContainer: `.${
+      // @ts-ignore
+      itemElement.dataset.name
+    }`,
     iconsFolder: './assets/images/icons',
-    volumeValue: 1,
+    volumeValue: 30,
     subtitle: !!videoSubtitles.length,
-    timeTrackOffset: 20
+    timeTrackOffset: 2
   });
 
   videoPlayer.playerInit();
-  videoStack[(item as HTMLDivElement).dataset.name || "unknown"]= videoPlayer;
+  // @ts-ignore
+  videoStack[itemElement.dataset.name || "unknown"]= videoPlayer;
 
 });
 
